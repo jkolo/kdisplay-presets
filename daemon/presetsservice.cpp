@@ -324,9 +324,7 @@ QHash<QString, QVariantMap> PresetsService::buildPresetOutputsMap(const QVariant
 
 void PresetsService::applyPresetToOutput(const KScreen::OutputPtr &output, const QVariantMap &presetOutputMap, KScreen::ConfigPtr config) const
 {
-    Q_UNUSED(config)
-
-    // Apply basic output settings
+    // Apply basic output settings - enable/disable first
     const bool enabled = presetOutputMap.value(QStringLiteral("enabled"), false).toBool();
     output->setEnabled(enabled);
 
@@ -334,28 +332,32 @@ void PresetsService::applyPresetToOutput(const KScreen::OutputPtr &output, const
         return;
     }
 
-    // Apply position
-    const QVariantMap posMap = presetOutputMap.value(QStringLiteral("pos")).toMap();
-    const QPoint position(posMap.value(QStringLiteral("x"), 0).toInt(), posMap.value(QStringLiteral("y"), 0).toInt());
-    output->setPos(position);
-
     // Apply mode
     const QString modeId = presetOutputMap.value(QStringLiteral("currentModeId")).toString();
     if (!modeId.isEmpty() && output->modes().contains(modeId)) {
         output->setCurrentModeId(modeId);
     }
 
-    // Apply rotation
-    const int rotation = presetOutputMap.value(QStringLiteral("rotation"), 1).toInt();
-    output->setRotation(static_cast<KScreen::Output::Rotation>(rotation));
-
     // Apply scale
     const qreal scale = presetOutputMap.value(QStringLiteral("scale"), 1.0).toReal();
     output->setScale(scale);
 
+    // Apply rotation
+    const int rotation = presetOutputMap.value(QStringLiteral("rotation"), 1).toInt();
+    output->setRotation(static_cast<KScreen::Output::Rotation>(rotation));
+
+    // Apply position
+    const QVariantMap posMap = presetOutputMap.value(QStringLiteral("pos")).toMap();
+    const QPoint position(posMap.value(QStringLiteral("x"), 0).toInt(), posMap.value(QStringLiteral("y"), 0).toInt());
+    output->setPos(position);
+
     // Apply primary status
     const bool primary = presetOutputMap.value(QStringLiteral("primary"), false).toBool();
     output->setPrimary(primary);
+
+    // Apply priority (after enabled state is set to ensure correct ordering)
+    const uint32_t priority = presetOutputMap.value(QStringLiteral("priority"), 1).toUInt();
+    config->setOutputPriority(output, priority);
 }
 
 void PresetsService::registerShortcut(const QString &presetId, const QKeySequence &shortcut)
