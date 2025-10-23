@@ -1,0 +1,19 @@
+<!DOCTYPE node PUBLIC "-//freedesktop//DTD D-BUS Object Introspection 1.0//EN" "http://www.freedesktop.org/standards/dbus/1.0/introspect.dtd">
+<node>
+  <interface name="org.kde.kdisplaypresets">
+    <!-- Preset management methods -->
+    <method name="applyPreset">
+      <arg name="presetId" type="s" direction="in" />
+    </method>
+    <method name="getPresets">
+      <arg name="presets" type="av" direction="out" />
+      <annotation name="org.qtproject.QtDBus.QtTypeName.Out0" value="QVariantList"/>
+    </method>
+
+    <!-- Preset change notification signal -->
+    <signal name="presetsChanged">
+      <arg name="changedPresets" type="av" direction="out" />
+      <annotation name="org.qtproject.QtDBus.QtTypeName.Out0" value="QVariantList"/>
+    </signal>
+  </interface>
+</node>

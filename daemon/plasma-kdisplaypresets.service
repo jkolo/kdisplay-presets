@@ -1,0 +1,8 @@
+[Unit]
+Description=KDE Display Presets Service
+PartOf=graphical-session.target
+
+[Service]
+Type=dbus
+BusName=org.kde.kdisplaypresets
+ExecStart=@KDE_INSTALL_FULL_LIBEXECDIR@/kdisplaypresets_daemon

@@ -1,0 +1,19 @@
+{
+    "KPlugin": {
+        "BugReportUrl": "https://bugs.kde.org/enter_bug.cgi?product=kdisplaypresets",
+        "Description": "Manage and configure display presets",
+        "Description[pl]": "Zarządzaj i konfiguruj presety ekranów",
+        "FormFactors": [
+            "tablet",
+            "handset",
+            "desktop"
+        ],
+        "Icon": "video-display",
+        "Name": "Display Presets",
+        "Name[pl]": "Presety ekranów"
+    },
+    "X-KDE-Keywords": "display,monitor,screen,preset,configuration,layout",
+    "X-KDE-Keywords[pl]": "ekran,monitor,preset,konfiguracja,układ",
+    "X-KDE-System-Settings-Parent-Category": "display",
+    "X-KDE-Weight": 50
+}

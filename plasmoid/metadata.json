@@ -1,0 +1,26 @@
+{
+    "KPackageStructure": "Plasma/Applet",
+    "KPlugin": {
+        "Authors": [
+            {
+                "Email": "jerzy@kolosowscy.pl",
+                "Name": "Jerzy Kołosowski"
+            }
+        ],
+        "Category": "System Information",
+        "Description": "Quickly switch between display presets",
+        "Description[pl]": "Szybko przełączaj między presetami ekranów",
+        "Icon": "video-display",
+        "Id": "org.kde.kdisplaypresets",
+        "License": "GPL-2.0-or-later",
+        "Name": "Display Presets",
+        "Name[pl]": "Presety ekranów",
+        "Version": "1.0",
+        "Website": ""
+    },
+    "X-Plasma-API-Minimum-Version": "6.0",
+    "X-Plasma-NotificationAreaCategory": "Hardware",
+    "X-Plasma-Provides": [
+        "org.kde.plasma.kdisplaypresets"
+    ]
+}
