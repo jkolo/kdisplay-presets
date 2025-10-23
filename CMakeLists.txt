@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.16)
 
 project(kdisplaypresets)
 
-set(PROJECT_VERSION "1.0")
+set(PROJECT_VERSION "1.0.1")
 set(PROJECT_VERSION_MAJOR 1)
 
 set(QT_MIN_VERSION 6.8.0)
