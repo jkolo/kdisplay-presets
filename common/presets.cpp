@@ -6,6 +6,8 @@
 #include "presets.h"
 #include "kdisplaypresets_common_debug.h"
 
+#include <KLocalizedString>
+
 #include <QDebug>
 #include <QDir>
 #include <QFile>
@@ -315,7 +317,7 @@ void Presets::loadPresetsFromDisk()
     }
 
     if (!file.open(QIODevice::ReadOnly)) {
-        const QString error = QStringLiteral("Could not open presets file for reading: %1").arg(filePath);
+        const QString error = i18n("Could not open presets file for reading: %1", filePath);
         qCWarning(KDISPLAYPRESETS_COMMON) << error;
         Q_EMIT loadingFailed(error);
         return;
@@ -324,7 +326,7 @@ void Presets::loadPresetsFromDisk()
     QJsonParseError parseError;
     const QJsonDocument doc = QJsonDocument::fromJson(file.readAll(), &parseError);
     if (parseError.error != QJsonParseError::NoError) {
-        const QString error = QStringLiteral("Error parsing presets file: %1").arg(parseError.errorString());
+        const QString error = i18n("Error parsing presets file: %1", parseError.errorString());
         qCWarning(KDISPLAYPRESETS_COMMON) << error;
         Q_EMIT loadingFailed(error);
         return;
@@ -372,7 +374,7 @@ void Presets::savePresetsToDisk()
     }
 
     if (!file.open(QIODevice::WriteOnly)) {
-        const QString error = QStringLiteral("Could not open presets file for writing: %1").arg(filePath);
+        const QString error = i18n("Could not open presets file for writing: %1", filePath);
         qCWarning(KDISPLAYPRESETS_COMMON) << error;
         Q_EMIT savingFailed(error);
         return;

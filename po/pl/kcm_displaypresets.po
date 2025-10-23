@@ -1,0 +1,182 @@
+# Translation of kcm_displaypresets to Polish
+# Copyright (C) 2025
+# This file is distributed under the same license as the kdisplaypresets package.
+# Jerzy Kołosowski <jerzy@kolosowscy.pl>, 2025.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: kdisplaypresets\n"
+"Report-Msgid-Bugs-To: https://bugs.kde.org\n"
+"POT-Creation-Date: 2025-01-23 12:00+0000\n"
+"PO-Revision-Date: 2025-01-23 12:00+0000\n"
+"Last-Translator: Jerzy Kołosowski <jerzy@kolosowscy.pl>\n"
+"Language-Team: Polish <kde-i18n-doc@kde.org>\n"
+"Language: pl\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=3; plural=(n==1 ? 0 : n%10>=2 && n%10<=4 && (n%100<10 || n%100>=20) ? 1 : 2);\n"
+
+#: kcm/preset_manager.cpp:85
+msgid "Invalid configuration"
+msgstr "Nieprawidłowa konfiguracja"
+
+#: kcm/ui/main.qml:21
+msgctxt "@title:window Display presets management"
+msgid "Display Presets"
+msgstr "Presety wyświetlania"
+
+#: kcm/ui/main.qml:32
+msgctxt "@action:button Save current display configuration"
+msgid "Save Current…"
+msgstr "Zapisz obecne…"
+
+#: kcm/ui/main.qml:60
+msgctxt "@label Fallback name for preset without name"
+msgid "Unnamed Preset"
+msgstr "Preset bez nazwy"
+
+#: kcm/ui/main.qml:70
+msgctxt "@info Number of displays in preset"
+msgid "%1 display(s)"
+msgstr "%1 wyświetlacz(e/y)"
+
+#: kcm/ui/main.qml:86
+msgctxt "@info"
+msgid "Last used: %1"
+msgstr "Ostatnio używany: %1"
+
+#: kcm/ui/main.qml:86
+msgctxt "@info"
+msgid "Never used"
+msgstr "Nigdy nie używany"
+
+#: kcm/ui/main.qml:95
+msgctxt "@info"
+msgid "Some monitors unavailable"
+msgstr "Niektóre monitory niedostępne"
+
+#: kcm/ui/main.qml:140
+msgctxt "@info:status Current preset is active"
+msgid "Current"
+msgstr "Bieżący"
+
+#: kcm/ui/main.qml:141
+msgctxt "@action:button Apply display preset"
+msgid "Apply"
+msgstr "Zastosuj"
+
+#: kcm/ui/main.qml:164
+msgctxt "@info:tooltip"
+msgid "This display preset is currently active"
+msgstr "Ten preset wyświetlania jest obecnie aktywny"
+
+#: kcm/ui/main.qml:165
+msgctxt "@info:tooltip"
+msgid "Apply this display preset configuration"
+msgstr "Zastosuj ten preset wyświetlania"
+
+#: kcm/ui/main.qml:172
+msgctxt "@action:button Edit preset properties"
+msgid "Edit"
+msgstr "Edytuj"
+
+#: kcm/ui/main.qml:184
+msgctxt "@info:tooltip"
+msgid "Edit the name and description of this preset"
+msgstr "Edytuj nazwę i opis tego presetu"
+
+#: kcm/ui/main.qml:190
+msgctxt "@action:button Delete preset"
+msgid "Delete"
+msgstr "Usuń"
+
+#: kcm/ui/main.qml:197
+msgctxt "@label"
+msgid "Unnamed Preset"
+msgstr "Preset bez nazwy"
+
+#: kcm/ui/main.qml:201
+msgctxt "@info:tooltip"
+msgid "Delete this display preset permanently"
+msgstr "Usuń ten preset wyświetlania na stałe"
+
+#: kcm/ui/main.qml:228
+msgctxt "@info"
+msgid "No display presets saved"
+msgstr "Brak zapisanych presetów wyświetlania"
+
+#: kcm/ui/main.qml:229
+msgctxt "@info"
+msgid "Save your current display configuration to quickly restore it later"
+msgstr "Zapisz obecną konfigurację wyświetlania, aby szybko przywrócić ją później"
+
+#: kcm/ui/main.qml:233
+msgctxt "@action:button"
+msgid "Save Current Configuration"
+msgstr "Zapisz obecną konfigurację"
+
+#: kcm/ui/main.qml:247
+msgctxt "@title:window"
+msgid "Delete Preset"
+msgstr "Usuń preset"
+
+#: kcm/ui/main.qml:248
+msgctxt "%1 is a preset name"
+msgid "Do you want to delete preset '%1'?"
+msgstr "Czy chcesz usunąć preset '%1'?"
+
+#: kcm/ui/main.qml:256
+msgctxt "@action:button"
+msgid "Delete Preset"
+msgstr "Usuń preset"
+
+#: kcm/ui/main.qml:271
+msgctxt "@title:window"
+msgid "Save Display Preset"
+msgstr "Zapisz preset wyświetlania"
+
+#: kcm/ui/main.qml:279
+msgctxt "@label:textbox"
+msgid "Name:"
+msgstr "Nazwa:"
+
+#: kcm/ui/main.qml:280
+msgctxt "@info:placeholder"
+msgid "Enter preset name"
+msgstr "Wprowadź nazwę presetu"
+
+#: kcm/ui/main.qml:286
+msgctxt "@label:textbox"
+msgid "Description:"
+msgstr "Opis:"
+
+#: kcm/ui/main.qml:287
+msgctxt "@info:placeholder"
+msgid "Optional description"
+msgstr "Opcjonalny opis"
+
+#: kcm/ui/main.qml:312
+msgctxt "@title:window"
+msgid "Edit Preset"
+msgstr "Edytuj preset"
+
+#: kcm/ui/main.qml:320
+msgctxt "@label:textbox Name for edit dialog"
+msgid "Name:"
+msgstr "Nazwa:"
+
+#: kcm/ui/main.qml:321
+msgctxt "@info:placeholder Enter preset name for edit"
+msgid "Enter preset name"
+msgstr "Wprowadź nazwę presetu"
+
+#: kcm/ui/main.qml:328
+msgctxt "@label:textbox Description for edit dialog"
+msgid "Description:"
+msgstr "Opis:"
+
+#: kcm/ui/main.qml:329
+msgctxt "@info:placeholder Optional description for edit"
+msgid "Optional description"
+msgstr "Opcjonalny opis"

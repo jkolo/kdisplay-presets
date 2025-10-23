@@ -7,6 +7,8 @@
 #include "presetsservice.h"
 #include "kdisplaypresets_daemon_debug.h"
 
+#include <KLocalizedString>
+
 #include <KScreen/Config>
 #include <KScreen/ConfigMonitor>
 #include <KScreen/GetConfigOperation>
@@ -118,7 +120,7 @@ void PresetsService::applyPreset(const QString &presetId)
     qCDebug(KDISPLAYPRESETS_DAEMON) << "Applying preset:" << presetId;
 
     if (!m_presets->isPresetAvailable(presetId)) {
-        const QString error = QStringLiteral("Preset not available: %1").arg(presetId);
+        const QString error = i18n("Preset not available: %1", presetId);
         qCWarning(KDISPLAYPRESETS_DAEMON) << error;
         Q_EMIT errorOccurred(error);
         return;
@@ -135,7 +137,7 @@ void PresetsService::applyPreset(const QString &presetId)
     }
 
     if (presetData.isEmpty()) {
-        const QString error = QStringLiteral("Preset data not found: %1").arg(presetId);
+        const QString error = i18n("Preset data not found: %1", presetId);
         qCWarning(KDISPLAYPRESETS_DAEMON) << error;
         Q_EMIT errorOccurred(error);
         return;
@@ -145,7 +147,7 @@ void PresetsService::applyPreset(const QString &presetId)
     auto *getConfigOp = new KScreen::GetConfigOperation();
     connect(getConfigOp, &KScreen::GetConfigOperation::finished, this, [this, presetId, presetData](KScreen::ConfigOperation *op) {
         if (op->hasError()) {
-            const QString error = QStringLiteral("Failed to get current config: %1").arg(op->errorString());
+            const QString error = i18n("Failed to get current config: %1", op->errorString());
             qCWarning(KDISPLAYPRESETS_DAEMON) << error;
             Q_EMIT errorOccurred(error);
             op->deleteLater();
@@ -154,7 +156,7 @@ void PresetsService::applyPreset(const QString &presetId)
 
         auto config = qobject_cast<KScreen::GetConfigOperation *>(op)->config();
         if (!config) {
-            const QString error = QStringLiteral("Invalid config received");
+            const QString error = i18n("Invalid config received");
             qCWarning(KDISPLAYPRESETS_DAEMON) << error;
             Q_EMIT errorOccurred(error);
             op->deleteLater();
@@ -176,7 +178,7 @@ void PresetsService::applyPreset(const QString &presetId)
         auto *setConfigOp = new KScreen::SetConfigOperation(config);
         connect(setConfigOp, &KScreen::SetConfigOperation::finished, this, [this, presetId](KScreen::ConfigOperation *setOp) {
             if (setOp->hasError()) {
-                const QString error = QStringLiteral("Failed to apply preset: %1").arg(setOp->errorString());
+                const QString error = i18n("Failed to apply preset: %1", setOp->errorString());
                 qCWarning(KDISPLAYPRESETS_DAEMON) << error;
                 Q_EMIT errorOccurred(error);
             } else {
@@ -368,7 +370,7 @@ void PresetsService::registerShortcut(const QString &presetId, const QKeySequenc
 
     auto action = new QAction(this);
     action->setObjectName(QStringLiteral("preset_%1").arg(presetId));
-    action->setText(QStringLiteral("Apply Display Preset"));
+    action->setText(i18n("Apply Display Preset"));
 
     connect(action, &QAction::triggered, this, [this, presetId]() {
         applyPreset(presetId);

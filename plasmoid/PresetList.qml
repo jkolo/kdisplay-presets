@@ -19,12 +19,6 @@ ColumnLayout {
 
     spacing: Kirigami.Units.smallSpacing
 
-    PlasmaComponents.Label {
-        text: i18nc("@title:group", "Presets")
-        font.bold: true
-        Layout.fillWidth: true
-    }
-
     ListView {
         id: listView
         Layout.fillWidth: true

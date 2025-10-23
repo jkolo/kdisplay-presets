@@ -1,3 +1,5 @@
+add_definitions(-DTRANSLATION_DOMAIN="kdisplaypresets_common")
+
 add_library(kdisplaypresets_common OBJECT presets.cpp utils.cpp)
 
 ecm_qt_declare_logging_category(kdisplaypresets_common

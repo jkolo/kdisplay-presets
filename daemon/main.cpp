@@ -8,17 +8,19 @@
 #include <QDBusConnection>
 #include <QGuiApplication>
 
+#include <KLocalizedString>
+
 #include "kdisplaypresets_daemon_debug.h"
 #include "presetsservice.h"
 
 QString parseCommandLineArguments(QGuiApplication &app)
 {
     QCommandLineParser parser;
-    parser.setApplicationDescription("KDE Display Presets Service");
+    parser.setApplicationDescription(i18n("KDE Display Presets Service"));
     parser.addHelpOption();
     parser.addVersionOption();
 
-    QCommandLineOption presetsFileOption(QStringList() << "p" << "presets-file", "Use custom presets file path instead of default location", "file");
+    QCommandLineOption presetsFileOption(QStringList() << "p" << "presets-file", i18n("Use custom presets file path instead of default location"), "file");
     parser.addOption(presetsFileOption);
 
     parser.process(app);
@@ -36,7 +38,7 @@ int main(int argc, char *argv[])
 {
     QGuiApplication app(argc, argv);
     app.setApplicationName("kdisplaypresets_daemon");
-    app.setApplicationVersion("1.0");
+    app.setApplicationVersion("1.0.2");
 
     const QString customFilePath = parseCommandLineArguments(app);
 

@@ -1,3 +1,5 @@
+add_definitions(-DTRANSLATION_DOMAIN="kdisplaypresets_daemon")
+
 add_executable(kdisplaypresets_daemon
     main.cpp
     presetsservice.cpp

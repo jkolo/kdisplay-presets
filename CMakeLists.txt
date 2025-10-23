@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.16)
 
 project(kdisplaypresets)
 
-set(PROJECT_VERSION "1.0.1")
+set(PROJECT_VERSION "1.0.2")
 set(PROJECT_VERSION_MAJOR 1)
 
 set(QT_MIN_VERSION 6.8.0)
@@ -73,5 +73,8 @@ ecm_qt_install_logging_categories(
     FILE kdisplaypresets.categories
     DESTINATION ${KDE_INSTALL_LOGGINGCATEGORIESDIR}
 )
+
+# Install translations
+ki18n_install(po)
 
 feature_summary(WHAT ALL INCLUDE_QUIET_PACKAGES FATAL_ON_MISSING_REQUIRED_PACKAGES)
