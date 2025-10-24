@@ -65,6 +65,7 @@ PlasmoidItem {
     }
 
     fullRepresentation: ColumnLayout {
+        id: fullRep
         spacing: 0
         Layout.preferredWidth: Kirigami.Units.gridUnit * 15
 
@@ -74,6 +75,8 @@ PlasmoidItem {
             Layout.leftMargin: Kirigami.Units.smallSpacing
             model: Plasmoid.presetModel
             loadPresetFunc: Plasmoid.loadPreset
+            plasmoidHeight: fullRep.height
+            plasmoidRoot: fullRep
         }
 
         // compact the layout

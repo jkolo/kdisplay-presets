@@ -10,12 +10,15 @@ import QtQuick.Controls as QQC2
 
 import org.kde.kirigami as Kirigami
 import org.kde.plasma.components as PlasmaComponents
+import org.kde.plasma.core as PlasmaCore
 
 ColumnLayout {
     id: presetList
 
     property alias model: listView.model
     property var loadPresetFunc
+    property real plasmoidHeight: 0
+    property var plasmoidRoot: null
 
     spacing: Kirigami.Units.smallSpacing
 
@@ -41,6 +44,40 @@ ColumnLayout {
 
             contentItem: RowLayout {
                 spacing: Kirigami.Units.smallSpacing
+
+                // Preview icon button
+                PlasmaComponents.ToolButton {
+                    id: previewButton
+                    icon.name: "monitor"
+                    Layout.preferredWidth: Kirigami.Units.iconSizes.smallMedium
+                    Layout.preferredHeight: Kirigami.Units.iconSizes.smallMedium
+
+                    PlasmaCore.PopupPlasmaWindow {
+                        id: previewPopup
+                        visualParent: presetList.plasmoidRoot || previewButton
+                        visible: previewButton.hovered
+                        popupDirection: Qt.LeftEdge
+
+                        width: mainItem.implicitWidth
+                        height: mainItem.implicitHeight
+
+                        mainItem: Item {
+                            id: mainItem
+                            implicitHeight: presetList.plasmoidHeight > 0 ? presetList.plasmoidHeight : Kirigami.Units.gridUnit * 15
+                            implicitWidth: presetView.width + Kirigami.Units.largeSpacing * 2
+
+                            PresetView {
+                                id: presetView
+                                height: parent.implicitHeight - Kirigami.Units.largeSpacing * 2
+                                x: Kirigami.Units.largeSpacing
+                                y: Kirigami.Units.largeSpacing
+                                outputs: model.configuration ? model.configuration.outputs : []
+                                presetAvailable: presetItem.available
+                                kcm: null
+                            }
+                        }
+                    }
+                }
 
                 ColumnLayout {
                     Layout.fillWidth: true
@@ -68,66 +105,6 @@ ColumnLayout {
                         font.pointSize: Kirigami.Theme.smallFont.pointSize
                         elide: Text.ElideRight
                         visible: model.shortcut && model.shortcut.length > 0
-                    }
-                }
-
-                // Preview icon button
-                PlasmaComponents.ToolButton {
-                    id: previewButton
-                    icon.name: "monitor"
-                    Layout.preferredWidth: Kirigami.Units.iconSizes.smallMedium
-                    Layout.preferredHeight: Kirigami.Units.iconSizes.smallMedium
-
-                    // Preview popup - moved outside the RowLayout to avoid positioning issues
-                    QQC2.ToolTip {
-                        id: previewPopup
-                        parent: QQC2.Overlay.overlay  // Use overlay for unrestricted positioning
-                        visible: previewButton.hovered
-
-                       // Dynamic sizing with reasonable bounds
-                        readonly property real maxPopupWidth: Kirigami.Units.gridUnit * 30
-                        readonly property real maxPopupHeight: Kirigami.Units.gridUnit * 20
-                        readonly property real minPopupWidth: Kirigami.Units.gridUnit * 12
-                        readonly property real minPopupHeight: Kirigami.Units.gridUnit * 8
-
-                        // Calculate size based on layout aspect ratio
-                        readonly property real contentAspectRatio: {
-                            if (!presetViewContent.outputs || presetViewContent.outputs.length === 0) {
-                                return 16/9; // Default aspect ratio
-                            }
-
-                            var bounds = presetViewContent.bounds;
-                            var layoutWidth = bounds.maxX - bounds.minX;
-                            var layoutHeight = bounds.maxY - bounds.minY;
-
-                            if (layoutWidth <= 0 || layoutHeight <= 0) {
-                                return 16/9;
-                            }
-
-                            return layoutWidth / layoutHeight;
-                        }
-
-                        onAboutToShow: {
-                            var pos = previewButton.mapToItem(QQC2.Overlay.overlay, 0, 0);
-                            x = pos.x - width;
-                            y = pos.y;
-                        }
-
-                        // Fixed width for consistent positioning, dynamic height based on aspect ratio
-                        width: Kirigami.Units.gridUnit * 30
-
-                        height: {
-                            var idealHeight = width / contentAspectRatio;
-                            return Math.max(minPopupHeight, Math.min(maxPopupHeight, idealHeight));
-                        }
-
-                        contentItem: PresetView {
-                            id: presetViewContent
-                            outputs: model.configuration ? model.configuration.outputs : []
-                            presetAvailable: presetItem.available
-                            kcm: null // We don't have KCM in plasmoid, but PresetView should handle null
-                            clip: false  // Disable clipping on content too
-                        }
                     }
                 }
 

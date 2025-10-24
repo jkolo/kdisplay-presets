@@ -16,6 +16,13 @@ Item {
     property bool presetAvailable: true
     property var kcm: null
 
+    // Calculate own width based on aspect ratio when height is set
+    width: {
+        if (layoutWidth <= 0 || layoutHeight <= 0 || height <= 0) {
+            return height * (16/9); // Fallback aspect ratio
+        }
+        return height * (layoutWidth / layoutHeight);
+    }
 
     // Calculate bounds for real positioning
     readonly property var bounds: {
