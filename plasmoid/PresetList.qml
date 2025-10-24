@@ -60,6 +60,15 @@ ColumnLayout {
                         font.pointSize: Kirigami.Theme.smallFont.pointSize
                         elide: Text.ElideRight
                     }
+
+                    PlasmaComponents.Label {
+                        Layout.fillWidth: true
+                        text: model.shortcut || ""
+                        opacity: 0.6
+                        font.pointSize: Kirigami.Theme.smallFont.pointSize
+                        elide: Text.ElideRight
+                        visible: model.shortcut && model.shortcut.length > 0
+                    }
                 }
 
                 // Preview icon button

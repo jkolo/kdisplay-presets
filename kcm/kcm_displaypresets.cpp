@@ -124,11 +124,8 @@ void KCMDisplayPresets::configReady(KScreen::ConfigOperation *op)
 
 void KCMDisplayPresets::updateScreenConfiguration()
 {
-    // Notify QML that outputs might have changed
-    Q_EMIT outputConnect();
-
-    // Update preset availability status
-    m_presetManager->refreshPresetStatus();
+    // Get updated configuration after screen changes
+    connect(new KScreen::GetConfigOperation(), &KScreen::GetConfigOperation::finished, this, &KCMDisplayPresets::configReady);
 }
 
 #include "kcm_displaypresets.moc"

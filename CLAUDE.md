@@ -2,6 +2,13 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Git Repositories
+
+- **origin** (`git@git.kolosowscy.pl:jurek/kdisplay-presets.git`) - Main repository
+- **github** (`git@github.com:jkolo/kdisplay-presets.git`) - Mirror, automatically synchronized from origin
+
+**IMPORTANT**: Always push to `origin` repository. GitHub mirror is automatically synchronized and should not be pushed to directly.
+
 ## Project Overview
 
 KDisplay Presets is a standalone KDE Plasma utility for managing display configuration presets. It allows users to save multiple display configurations and quickly switch between them using a system tray widget, keyboard shortcuts, or the System Settings module.
