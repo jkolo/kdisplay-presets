@@ -115,7 +115,7 @@ bool Presets::isPresetAvailable(const QString &presetId) const
 
     for (const auto &presetOutputVariant : presetOutputsList) {
         const auto presetOutputMap = presetOutputVariant.toMap();
-        const QString presetOutputName = presetOutputMap[QStringLiteral("name")].toString();
+        const QString presetOutputId = presetOutputMap[QStringLiteral("id")].toString();
 
         // Only check outputs that are supposed to be enabled in the preset
         if (!presetOutputMap[QStringLiteral("enabled")].toBool()) {
@@ -124,14 +124,17 @@ bool Presets::isPresetAvailable(const QString &presetId) const
 
         bool found = false;
         for (const auto &currentOutput : currentOutputs) {
-            if (currentOutput->name() == presetOutputName && currentOutput->isConnected()) {
+            if (currentOutput->hashMd5() == presetOutputId && currentOutput->isConnected()) {
                 found = true;
                 break;
             }
         }
 
         if (!found) {
-            qCDebug(KDISPLAYPRESETS_COMMON) << "Output not found or not connected:" << presetOutputName << "for preset" << presetId;
+            qCDebug(KDISPLAYPRESETS_COMMON) << "Output not found or not connected:" << presetOutputId
+                                            << "(display:" << presetOutputMap[QStringLiteral("displayName")].toString()
+                                            << "was at port:" << presetOutputMap[QStringLiteral("name")].toString()
+                                            << ") for preset" << presetId;
             return false;
         }
     }
@@ -167,12 +170,13 @@ bool Presets::isPresetCurrent(const QString &presetId) const
         bool found = false;
         for (const auto &presetOutputVariant : presetOutputsList) {
             const auto presetOutputMap = presetOutputVariant.toMap();
-            if (presetOutputMap[QStringLiteral("name")].toString() == currentOutput->name()) {
+            if (presetOutputMap[QStringLiteral("id")].toString() == currentOutput->hashMd5()) {
                 found = true;
 
                 // Check if enabled state matches
                 if (currentOutput->isEnabled() != presetOutputMap[QStringLiteral("enabled")].toBool()) {
-                    qCDebug(KDISPLAYPRESETS_COMMON) << "Enabled state mismatch for" << currentOutput->name()
+                    qCDebug(KDISPLAYPRESETS_COMMON) << "Enabled state mismatch for" << currentOutput->hashMd5()
+                                                    << "(port:" << currentOutput->name() << ")"
                                                     << "current:" << currentOutput->isEnabled()
                                                     << "preset:" << presetOutputMap[QStringLiteral("enabled")].toBool();
                     return false;
@@ -239,7 +243,8 @@ bool Presets::isPresetCurrent(const QString &presetId) const
 
         // If current output is enabled but not found in preset, it's not current
         if (!found && currentOutput->isEnabled()) {
-            qCDebug(KDISPLAYPRESETS_COMMON) << "Current enabled output" << currentOutput->name() << "not found in preset";
+            qCDebug(KDISPLAYPRESETS_COMMON) << "Current enabled output" << currentOutput->hashMd5()
+                                            << "(port:" << currentOutput->name() << ") not found in preset";
             return false;
         }
     }
@@ -248,18 +253,21 @@ bool Presets::isPresetCurrent(const QString &presetId) const
     for (const auto &presetOutputVariant : presetOutputsList) {
         const auto presetOutputMap = presetOutputVariant.toMap();
         if (presetOutputMap[QStringLiteral("enabled")].toBool()) {
-            const QString presetOutputName = presetOutputMap[QStringLiteral("name")].toString();
+            const QString presetOutputId = presetOutputMap[QStringLiteral("id")].toString();
 
             bool found = false;
             for (const auto &currentOutput : currentOutputs) {
-                if (currentOutput->name() == presetOutputName && currentOutput->isConnected() && currentOutput->isEnabled()) {
+                if (currentOutput->hashMd5() == presetOutputId && currentOutput->isConnected() && currentOutput->isEnabled()) {
                     found = true;
                     break;
                 }
             }
 
             if (!found) {
-                qCDebug(KDISPLAYPRESETS_COMMON) << "Preset enabled output" << presetOutputName << "not found in current configuration";
+                qCDebug(KDISPLAYPRESETS_COMMON) << "Preset enabled output" << presetOutputId
+                                                << "(display:" << presetOutputMap[QStringLiteral("displayName")].toString()
+                                                << "was at port:" << presetOutputMap[QStringLiteral("name")].toString()
+                                                << ") not found in current configuration";
                 return false;
             }
         }

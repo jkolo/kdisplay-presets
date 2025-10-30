@@ -168,9 +168,14 @@ QVariantMap PresetManager::configToVariantMap(KScreen::ConfigPtr config) const
     configMap[QStringLiteral("features")] = static_cast<int>(config->supportedFeatures());
     configMap[QStringLiteral("tabletModeEngaged")] = config->tabletModeEngaged();
 
-    // Store outputs
+    // Store outputs (only enabled ones)
     QVariantList outputsList;
     for (const auto &output : config->outputs()) {
+        // Skip disabled outputs - we only store enabled displays in presets
+        if (!output->isEnabled()) {
+            continue;
+        }
+
         QVariantMap outputMap;
         outputMap[QStringLiteral("id")] = output->hashMd5();
         outputMap[QStringLiteral("name")] = output->name();

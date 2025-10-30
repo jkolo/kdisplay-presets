@@ -169,8 +169,19 @@ void PresetsService::applyPreset(const QString &presetId)
 
         const auto outputs = config->outputs();
         for (const auto &output : outputs) {
-            if (presetOutputsMap.contains(output->name())) {
-                applyPresetToOutput(output, presetOutputsMap[output->name()], config);
+            const QString outputId = output->hashMd5();
+            if (presetOutputsMap.contains(outputId)) {
+                // Output is in preset - apply its configuration
+                applyPresetToOutput(output, presetOutputsMap[outputId], config);
+                qCDebug(KDISPLAYPRESETS_DAEMON) << "Applied preset settings to output:" << outputId
+                                                << "(port:" << output->name() << ")";
+            } else {
+                // Output is NOT in preset - disable it
+                if (output->isConnected()) {
+                    output->setEnabled(false);
+                    qCDebug(KDISPLAYPRESETS_DAEMON) << "Disabled output not in preset:" << outputId
+                                                    << "(port:" << output->name() << ")";
+                }
             }
         }
 
@@ -316,9 +327,9 @@ QHash<QString, QVariantMap> PresetsService::buildPresetOutputsMap(const QVariant
     QHash<QString, QVariantMap> outputsMap;
     for (const auto &outputVariant : presetOutputsList) {
         const QVariantMap outputMap = outputVariant.toMap();
-        const QString outputName = outputMap.value(QStringLiteral("name")).toString();
-        if (!outputName.isEmpty()) {
-            outputsMap[outputName] = outputMap;
+        const QString outputId = outputMap.value(QStringLiteral("id")).toString();
+        if (!outputId.isEmpty()) {
+            outputsMap[outputId] = outputMap;
         }
     }
     return outputsMap;
