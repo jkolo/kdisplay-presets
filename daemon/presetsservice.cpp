@@ -21,7 +21,6 @@
 #include <QDBusConnection>
 #include <QDBusMetaType>
 #include <QTimer>
-#include <stdexcept>
 
 PresetsService::PresetsService(QObject *parent, const QString &customPresetsFile)
     : QObject(parent)
@@ -196,7 +195,6 @@ void PresetsService::applyPreset(const QString &presetId)
                 // Update last used timestamp
                 m_presets->updateLastUsed(presetId);
                 qCDebug(KDISPLAYPRESETS_DAEMON) << "Preset applied successfully:" << presetId;
-                Q_EMIT presetApplied(presetId);
             }
             setOp->deleteLater();
         });
@@ -205,39 +203,30 @@ void PresetsService::applyPreset(const QString &presetId)
     });
 }
 
+QVariantMap PresetsService::buildPresetMap(const QModelIndex &index) const
+{
+    QVariantMap preset;
+    const QString presetId = m_presets->data(index, Presets::IdRole).toString();
+
+    preset[QStringLiteral("presetId")] = presetId;
+    preset[QStringLiteral("name")] = m_presets->data(index, Presets::NameRole).toString();
+    preset[QStringLiteral("description")] = m_presets->data(index, Presets::DescriptionRole).toString();
+    preset[QStringLiteral("lastUsed")] = m_presets->data(index, Presets::LastUsedRole).toDateTime().toString(Qt::ISODate);
+    preset[QStringLiteral("outputCount")] = m_presets->data(index, Presets::OutputCountRole).toInt();
+    preset[QStringLiteral("configuration")] = m_presets->data(index, Presets::ConfigurationRole);
+    preset[QStringLiteral("shortcut")] = m_presets->data(index, Presets::ShortcutRole).value<QKeySequence>().toString();
+    preset[QStringLiteral("isAvailable")] = m_presets->isPresetAvailable(presetId);
+    preset[QStringLiteral("isCurrent")] = m_presets->isPresetCurrent(presetId);
+
+    return preset;
+}
+
 QVariantList PresetsService::getPresets()
 {
     QVariantList presets;
-
     for (int i = 0; i < m_presets->rowCount(); ++i) {
-        const QModelIndex index = m_presets->index(i, 0);
-        QVariantMap preset;
-
-        const QString presetId = m_presets->data(index, Presets::IdRole).toString();
-        preset[QStringLiteral("presetId")] = presetId;
-        preset[QStringLiteral("name")] = m_presets->data(index, Presets::NameRole).toString();
-        preset[QStringLiteral("description")] = m_presets->data(index, Presets::DescriptionRole).toString();
-
-        // Convert QDateTime to string for D-Bus serialization
-        QDateTime lastUsed = m_presets->data(index, Presets::LastUsedRole).toDateTime();
-        preset[QStringLiteral("lastUsed")] = lastUsed.toString(Qt::ISODate);
-
-        preset[QStringLiteral("outputCount")] = m_presets->data(index, Presets::OutputCountRole).toInt();
-
-        // Add configuration data
-        preset[QStringLiteral("configuration")] = m_presets->data(index, Presets::ConfigurationRole);
-
-        // Convert QKeySequence to string for D-Bus serialization
-        QKeySequence shortcut = m_presets->data(index, Presets::ShortcutRole).value<QKeySequence>();
-        preset[QStringLiteral("shortcut")] = shortcut.toString();
-
-        // Check if preset is available and current
-        preset[QStringLiteral("isAvailable")] = m_presets->isPresetAvailable(presetId);
-        preset[QStringLiteral("isCurrent")] = m_presets->isPresetCurrent(presetId);
-
-        presets.append(preset);
+        presets.append(buildPresetMap(m_presets->index(i, 0)));
     }
-
     return presets;
 }
 
@@ -246,59 +235,28 @@ void PresetsService::emitPresetsChanged(const QStringList &changedPresetIds)
     QVariantList changedPresets;
 
     if (changedPresetIds.isEmpty()) {
-        // If no specific presets specified, emit all presets with current status
-        for (int i = 0; i < m_presets->rowCount(); ++i) {
-            const QModelIndex index = m_presets->index(i, 0);
-            const QString presetId = m_presets->data(index, Presets::IdRole).toString();
-            changedPresets.append(getPresetInfo(presetId));
-        }
+        changedPresets = getPresets();
     } else {
-        // Emit only specified presets
         for (const QString &presetId : changedPresetIds) {
-            changedPresets.append(getPresetInfo(presetId));
+            // Find preset in model
+            for (int i = 0; i < m_presets->rowCount(); ++i) {
+                const QModelIndex index = m_presets->index(i, 0);
+                if (m_presets->data(index, Presets::IdRole).toString() == presetId) {
+                    changedPresets.append(buildPresetMap(index));
+                    break;
+                }
+            }
+            // If preset not found (deleted), emit minimal info with deleted flag
+            if (changedPresets.isEmpty() || changedPresets.last().toMap().value(QStringLiteral("presetId")).toString() != presetId) {
+                QVariantMap deletedPreset;
+                deletedPreset[QStringLiteral("presetId")] = presetId;
+                deletedPreset[QStringLiteral("deleted")] = true;
+                changedPresets.append(deletedPreset);
+            }
         }
     }
 
     Q_EMIT presetsChanged(changedPresets);
-}
-
-QVariantMap PresetsService::getPresetInfo(const QString &presetId) const
-{
-    QVariantMap preset;
-
-    // Find preset in model
-    for (int i = 0; i < m_presets->rowCount(); ++i) {
-        const QModelIndex index = m_presets->index(i, 0);
-        if (m_presets->data(index, Presets::IdRole).toString() == presetId) {
-            preset[QStringLiteral("presetId")] = presetId;
-            preset[QStringLiteral("name")] = m_presets->data(index, Presets::NameRole).toString();
-            preset[QStringLiteral("description")] = m_presets->data(index, Presets::DescriptionRole).toString();
-
-            // Convert QDateTime to string for D-Bus serialization
-            QDateTime lastUsed = m_presets->data(index, Presets::LastUsedRole).toDateTime();
-            preset[QStringLiteral("lastUsed")] = lastUsed.toString(Qt::ISODate);
-
-            preset[QStringLiteral("outputCount")] = m_presets->data(index, Presets::OutputCountRole).toInt();
-
-            // Add configuration data
-            preset[QStringLiteral("configuration")] = m_presets->data(index, Presets::ConfigurationRole);
-
-            // Convert QKeySequence to string for D-Bus serialization
-            QKeySequence shortcut = m_presets->data(index, Presets::ShortcutRole).value<QKeySequence>();
-            preset[QStringLiteral("shortcut")] = shortcut.toString();
-
-            // Check current status
-            preset[QStringLiteral("isAvailable")] = m_presets->isPresetAvailable(presetId);
-            preset[QStringLiteral("isCurrent")] = m_presets->isPresetCurrent(presetId);
-            preset[QStringLiteral("deleted")] = false;
-            return preset;
-        }
-    }
-
-    // Preset not found - mark as deleted
-    preset[QStringLiteral("presetId")] = presetId;
-    preset[QStringLiteral("deleted")] = true;
-    return preset;
 }
 
 void PresetsService::initShortcuts()
@@ -364,10 +322,6 @@ void PresetsService::applyPresetToOutput(const KScreen::OutputPtr &output, const
     const QPoint position(posMap.value(QStringLiteral("x"), 0).toInt(), posMap.value(QStringLiteral("y"), 0).toInt());
     output->setPos(position);
 
-    // Apply primary status
-    const bool primary = presetOutputMap.value(QStringLiteral("primary"), false).toBool();
-    output->setPrimary(primary);
-
     // Apply priority (after enabled state is set to ensure correct ordering)
     const uint32_t priority = presetOutputMap.value(QStringLiteral("priority"), 1).toUInt();
     config->setOutputPriority(output, priority);
@@ -389,16 +343,6 @@ void PresetsService::registerShortcut(const QString &presetId, const QKeySequenc
 
     KGlobalAccel::self()->setShortcut(action, {shortcut});
     m_shortcutActions[presetId] = action;
-}
-
-void PresetsService::unregisterShortcut(const QString &presetId)
-{
-    auto it = m_shortcutActions.find(presetId);
-    if (it != m_shortcutActions.end()) {
-        KGlobalAccel::self()->removeAllShortcuts(it.value());
-        it.value()->deleteLater();
-        m_shortcutActions.erase(it);
-    }
 }
 
 void PresetsService::onPresetsModelChanged()

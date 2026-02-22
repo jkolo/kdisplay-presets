@@ -4,14 +4,15 @@
     SPDX-License-Identifier: GPL-2.0-or-later
 */
 
-#include <QCommandLineParser>
-#include <QDBusConnection>
-#include <QGuiApplication>
+#include "presetsservice.h"
+#include "kdisplaypresets_daemon_debug.h"
+#include "kdisplaypresets_version.h"
 
 #include <KLocalizedString>
 
-#include "kdisplaypresets_daemon_debug.h"
-#include "presetsservice.h"
+#include <QCommandLineParser>
+#include <QDBusConnection>
+#include <QGuiApplication>
 
 QString parseCommandLineArguments(QGuiApplication &app)
 {
@@ -37,8 +38,8 @@ QString parseCommandLineArguments(QGuiApplication &app)
 int main(int argc, char *argv[])
 {
     QGuiApplication app(argc, argv);
-    app.setApplicationName("kdisplaypresets_daemon");
-    app.setApplicationVersion("1.0.2");
+    app.setApplicationName(QStringLiteral("kdisplaypresets_daemon"));
+    app.setApplicationVersion(QStringLiteral(KDISPLAYPRESETS_VERSION_STRING));
 
     const QString customFilePath = parseCommandLineArguments(app);
 

@@ -5,38 +5,21 @@
 */
 #include "preset_manager.h"
 #include "common/utils.h"
+#include "kdisplaypresets_kcm_debug.h"
 
-#include <kscreen/edid.h>
-#include <kscreen/mode.h>
+#include <KScreen/Mode>
 
-#include <KLocalizedString>
-
-#include <QDebug>
-#include <QJsonArray>
-#include <QJsonObject>
 #include <QUuid>
 
 PresetManager::PresetManager(QObject *parent)
     : QObject(parent)
 {
     m_presets = new Presets(this);
-
-    // Forward signals from Presets
-    connect(m_presets, &Presets::presetsChanged, this, &PresetManager::presetsChanged);
-    connect(m_presets, &Presets::screenConfigurationChanged, this, &PresetManager::screenConfigurationChanged);
-    connect(m_presets, &Presets::loadingFailed, this, &PresetManager::loadingFailed);
-    connect(m_presets, &Presets::savingFailed, this, &PresetManager::savingFailed);
 }
 
 Presets *PresetManager::presetsModel() const
 {
     return m_presets;
-}
-
-// Presets interface forwarding
-bool PresetManager::hasPresets() const
-{
-    return m_presets->hasPresets();
 }
 
 bool PresetManager::isPresetAvailable(const QString &presetId) const
@@ -49,29 +32,9 @@ bool PresetManager::isPresetCurrent(const QString &presetId) const
     return m_presets->isPresetCurrent(presetId);
 }
 
-DisplayPreset PresetManager::getPreset(const QString &presetId) const
-{
-    return m_presets->getPreset(presetId);
-}
-
-bool PresetManager::presetExists(const QString &name) const
-{
-    return m_presets->presetExists(name);
-}
-
-void PresetManager::updateLastUsed(const QString &presetId)
-{
-    m_presets->updateLastUsed(presetId);
-}
-
 void PresetManager::refreshPresetStatus()
 {
     m_presets->refreshPresetStatus();
-}
-
-KScreen::ConfigPtr PresetManager::screenConfiguration() const
-{
-    return m_presets->screenConfiguration();
 }
 
 void PresetManager::setScreenConfiguration(KScreen::ConfigPtr config)
@@ -82,7 +45,7 @@ void PresetManager::setScreenConfiguration(KScreen::ConfigPtr config)
 void PresetManager::savePreset(const QString &name, const QString &description, KScreen::ConfigPtr config)
 {
     if (!config) {
-        Q_EMIT errorOccurred(i18n("Invalid configuration"));
+        qCWarning(KDISPLAYPRESETS_KCM) << "Cannot save preset: invalid configuration";
         return;
     }
 
@@ -118,14 +81,12 @@ void PresetManager::savePreset(const QString &name, const QString &description, 
     }
 
     m_presets->saveToDisk();
-    Q_EMIT presetSaved(presetId);
 }
 
 void PresetManager::deletePreset(const QString &presetId)
 {
     m_presets->removePreset(presetId);
     m_presets->saveToDisk();
-    Q_EMIT presetDeleted(presetId);
 }
 
 void PresetManager::renamePreset(const QString &presetId, const QString &newName)
@@ -185,7 +146,6 @@ QVariantMap PresetManager::configToVariantMap(KScreen::ConfigPtr config) const
         outputMap[QStringLiteral("displayName")] = Utils::outputName(output.get());
         outputMap[QStringLiteral("connected")] = output->isConnected();
         outputMap[QStringLiteral("enabled")] = output->isEnabled();
-        outputMap[QStringLiteral("primary")] = output->isPrimary();
         outputMap[QStringLiteral("priority")] = output->priority();
 
         // Position and size

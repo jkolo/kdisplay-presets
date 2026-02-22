@@ -6,8 +6,6 @@
 #pragma once
 
 #include <KScreen/Config>
-#include <KScreen/Mode>
-#include <KScreen/Output>
 
 #include <QAbstractListModel>
 #include <QDateTime>
@@ -68,12 +66,8 @@ public:
     void setScreenConfiguration(KScreen::ConfigPtr config);
 
     Q_INVOKABLE DisplayPreset getPreset(const QString &presetId) const;
-    Q_INVOKABLE bool presetExists(const QString &name) const;
     Q_INVOKABLE void updateLastUsed(const QString &presetId);
     Q_INVOKABLE void refreshPresetStatus();
-
-    void setCustomPresetsFilePath(const QString &filePath);
-    void reloadPresets();
 
     // Methods for preset manipulation
     void addPreset(const DisplayPreset &preset);

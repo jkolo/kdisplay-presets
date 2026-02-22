@@ -27,8 +27,9 @@ public:
         ShortcutRole,
         ConfigurationRole,
         IsCurrentRole,
-        IsAvailableRole
+        IsAvailableRole,
     };
+    Q_ENUM(PresetRoles)
 
     explicit PresetModel(QDBusInterface *presetsInterface, QObject *parent = nullptr);
 

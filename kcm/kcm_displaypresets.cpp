@@ -5,13 +5,13 @@
 */
 
 #include "kcm_displaypresets.h"
+#include "kdisplaypresets_kcm_debug.h"
 #include "preset_manager.h"
 
 #include <KScreen/Config>
 #include <KScreen/ConfigMonitor>
 #include <KScreen/GetConfigOperation>
 
-#include <KLocalizedString>
 #include <KPluginFactory>
 
 #include <QDBusConnection>
@@ -83,7 +83,7 @@ void KCMDisplayPresets::loadPreset(const QString &presetId)
                              QDBusConnection::sessionBus());
 
     if (!interface.isValid()) {
-        qWarning() << "Failed to connect to kdisplaypresets D-Bus service";
+        qCWarning(KDISPLAYPRESETS_KCM) << "Failed to connect to kdisplaypresets D-Bus service";
         return;
     }
 
@@ -103,7 +103,7 @@ bool KCMDisplayPresets::isPresetCurrent(const QString &presetId) const
 void KCMDisplayPresets::configReady(KScreen::ConfigOperation *op)
 {
     if (op->hasError()) {
-        qWarning() << "Failed to get screen configuration:" << op->errorString();
+        qCWarning(KDISPLAYPRESETS_KCM) << "Failed to get screen configuration:" << op->errorString();
         op->deleteLater();
         return;
     }

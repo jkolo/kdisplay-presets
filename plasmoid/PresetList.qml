@@ -73,7 +73,6 @@ ColumnLayout {
                                 y: Kirigami.Units.largeSpacing
                                 outputs: model.configuration ? model.configuration.outputs : []
                                 presetAvailable: presetItem.available
-                                kcm: null
                             }
                         }
                     }

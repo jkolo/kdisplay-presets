@@ -4,10 +4,10 @@
 
     SPDX-License-Identifier: GPL-2.0-or-later
 */
-import QtQuick 2.15
-import QtQuick.Layouts 1.15
-import QtQuick.Controls 2.15 as QQC2
-import org.kde.kirigami 2.20 as Kirigami
+import QtQuick
+import QtQuick.Layouts
+import QtQuick.Controls as QQC2
+import org.kde.kirigami as Kirigami
 
 Item {
     id: presetOutput
@@ -17,18 +17,19 @@ Item {
     readonly property int capabilityExtendedDynamicRange: 2048 // 1 << 11
 
     property var outputData: null
-    property var kcm: null
     property real scaleFactor: 1.0
     property real xOffset: 0
     property real yOffset: 0
     property var bounds: ({ minX: 0, minY: 0, maxX: 1920, maxY: 1080 })
+
+    // For static preset visualization, always show as available
+    readonly property bool outputAvailable: true
 
     readonly property var pos: outputData?.pos || { x: 0, y: 0 }
     readonly property var mode: outputData?.mode || { width: 1920, height: 1080 }
     readonly property real scale: outputData?.scale || 1
     readonly property real monitorWidth: mode.width / scale
     readonly property real monitorHeight: mode.height / scale
-    readonly property bool outputAvailable: !kcm || kcm.isOutputCurrentlyConnected(outputData?.id || "")
 
     visible: outputData?.enabled !== false
     x: ((pos.x || 0) - bounds.minX) * scaleFactor + xOffset
@@ -112,9 +113,9 @@ Item {
                         return name.trim();
                     }
 
-                    return i18nc("@label default monitor name", "Monitor");
+                    return presetOutput.outputData?.name || i18nc("@label default monitor name", "Monitor");
                 }
-                color: Kirigami.Theme.textColor
+                color: outputAvailable ? Kirigami.Theme.textColor : Kirigami.Theme.disabledTextColor
                 font.pixelSize: Math.max(6, Math.min(12, parent.parent.height / 5))
                 font.bold: false
                 horizontalAlignment: Text.AlignHCenter
@@ -123,13 +124,15 @@ Item {
                 visible: parent.parent.height > 15
             }
 
+            // Missing monitor indicator or technical details
             Text {
                 anchors.horizontalCenter: parent.horizontalCenter
                 text: {
-                    // Use Utils::sizeToString() for consistent formatting
-                    var res = presetOutput.kcm ?
-                        presetOutput.kcm.formatResolution(mode.width || 1920, mode.height || 1080) :
-                        (mode.width || 1920) + "×" + (mode.height || 1080);
+                    if (!outputAvailable) {
+                        return i18nc("@info Monitor is not currently connected", "Missing");
+                    }
+
+                    var res = (mode.width || 1920) + "×" + (mode.height || 1080);
                     var refresh = Math.round(mode.refreshRate || 60) + "Hz";
                     var extras = [];
 
@@ -156,9 +159,9 @@ Item {
 
                     return result;
                 }
-                color: Kirigami.Theme.textColor
+                color: outputAvailable ? Kirigami.Theme.textColor : Kirigami.Theme.disabledTextColor
                 font.pixelSize: Math.max(5, Math.min(10, parent.parent.height / 6))
-                opacity: 0.8
+                opacity: outputAvailable ? 0.8 : 0.7
                 horizontalAlignment: Text.AlignHCenter
                 elide: Text.ElideRight
                 textFormat: Text.RichText
@@ -171,11 +174,11 @@ Item {
                     var scale = presetOutput.outputData?.scale || 1;
                     return i18nc("@info monitor scale factor", "Scale: %1%", Math.round(scale * 100));
                 }
-                color: Kirigami.Theme.textColor
+                color: outputAvailable ? Kirigami.Theme.textColor : Kirigami.Theme.disabledTextColor
                 font.pixelSize: Math.max(5, Math.min(9, parent.parent.height / 7))
                 opacity: 0.7
                 horizontalAlignment: Text.AlignHCenter
-                visible: parent.parent.height > 25
+                visible: parent.parent.height > 25 && outputAvailable
             }
         }
     }

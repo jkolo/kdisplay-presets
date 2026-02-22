@@ -17,6 +17,8 @@ ecm_qt_declare_logging_category(kdisplaypresets_daemon
     EXPORT KDISPLAYPRESETS
 )
 
+target_include_directories(kdisplaypresets_daemon PRIVATE "${CMAKE_BINARY_DIR}")
+
 target_link_libraries(kdisplaypresets_daemon PRIVATE
     kdisplaypresets_common
     Qt::Core

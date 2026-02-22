@@ -6,9 +6,10 @@
 #include "presets.h"
 #include "kdisplaypresets_common_debug.h"
 
+#include <KScreen/Mode>
+
 #include <KLocalizedString>
 
-#include <QDebug>
 #include <QDir>
 #include <QFile>
 #include <QJsonArray>
@@ -296,16 +297,9 @@ DisplayPreset Presets::getPreset(const QString &presetId) const
     return DisplayPreset{};
 }
 
-bool Presets::presetExists(const QString &name) const
-{
-    return std::any_of(m_presets.begin(), m_presets.end(), [&name](const DisplayPreset &preset) {
-        return preset.name == name;
-    });
-}
-
 void Presets::updateLastUsed(const QString &presetId)
 {
-    auto it = std::find_if(m_presets.begin(), m_presets.end(), [&presetId](const DisplayPreset &preset) {
+    auto it = std::ranges::find_if(m_presets, [&presetId](const DisplayPreset &preset) {
         return preset.id == presetId;
     });
 
@@ -431,35 +425,6 @@ QString Presets::presetsFilePath() const
     return dataDir + QStringLiteral("/kdisplaypresets/presets.json");
 }
 
-void Presets::setCustomPresetsFilePath(const QString &filePath)
-{
-    m_customPresetsFilePath = filePath;
-}
-
-void Presets::reloadPresets()
-{
-    // Remove old file watcher if exists
-    if (!m_fileWatcher->files().isEmpty()) {
-        m_fileWatcher->removePaths(m_fileWatcher->files());
-    }
-
-    // Clear existing presets
-    beginResetModel();
-    m_presets.clear();
-    endResetModel();
-
-    // Load presets from the new path
-    loadPresetsFromDisk();
-
-    // Add new file to watcher
-    const QString filePath = presetsFilePath();
-    if (QFile::exists(filePath)) {
-        m_fileWatcher->addPath(filePath);
-    }
-
-    Q_EMIT presetsChanged();
-}
-
 void Presets::onPresetFileChanged()
 {
     const QString filePath = presetsFilePath();
@@ -492,7 +457,7 @@ void Presets::addPreset(const DisplayPreset &preset)
 
 void Presets::updatePreset(const QString &presetId, const DisplayPreset &preset)
 {
-    auto it = std::find_if(m_presets.begin(), m_presets.end(), [&presetId](const DisplayPreset &p) {
+    auto it = std::ranges::find_if(m_presets, [&presetId](const DisplayPreset &p) {
         return p.id == presetId;
     });
 
@@ -506,7 +471,7 @@ void Presets::updatePreset(const QString &presetId, const DisplayPreset &preset)
 
 void Presets::removePreset(const QString &presetId)
 {
-    auto it = std::find_if(m_presets.begin(), m_presets.end(), [&presetId](const DisplayPreset &preset) {
+    auto it = std::ranges::find_if(m_presets, [&presetId](const DisplayPreset &preset) {
         return preset.id == presetId;
     });
 
@@ -521,7 +486,7 @@ void Presets::removePreset(const QString &presetId)
 
 DisplayPreset *Presets::findPreset(const QString &presetId)
 {
-    auto it = std::find_if(m_presets.begin(), m_presets.end(), [&presetId](const DisplayPreset &preset) {
+    auto it = std::ranges::find_if(m_presets, [&presetId](const DisplayPreset &preset) {
         return preset.id == presetId;
     });
 
@@ -530,7 +495,7 @@ DisplayPreset *Presets::findPreset(const QString &presetId)
 
 DisplayPreset *Presets::findPresetByName(const QString &name)
 {
-    auto it = std::find_if(m_presets.begin(), m_presets.end(), [&name](const DisplayPreset &preset) {
+    auto it = std::ranges::find_if(m_presets, [&name](const DisplayPreset &preset) {
         return preset.name == name;
     });
 

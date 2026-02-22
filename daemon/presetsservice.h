@@ -9,6 +9,7 @@
 #include "common/presets.h"
 
 #include <QAction>
+#include <QModelIndex>
 #include <QObject>
 #include <QTimer>
 
@@ -35,7 +36,6 @@ public Q_SLOTS:
 
 Q_SIGNALS:
     Q_SCRIPTABLE void presetsChanged(const QVariantList &changedPresets);
-    void presetApplied(const QString &presetId);
     void errorOccurred(const QString &error);
 
 private Q_SLOTS:
@@ -47,11 +47,10 @@ private Q_SLOTS:
 private:
     void updatePresetScreenConfiguration();
     void emitPresetsChanged(const QStringList &changedPresetIds = {});
-    QVariantMap getPresetInfo(const QString &presetId) const;
+    QVariantMap buildPresetMap(const QModelIndex &index) const;
     QHash<QString, QVariantMap> buildPresetOutputsMap(const QVariantList &presetOutputsList) const;
     void applyPresetToOutput(const KScreen::OutputPtr &output, const QVariantMap &presetOutputMap, KScreen::ConfigPtr config) const;
     void registerShortcut(const QString &presetId, const QKeySequence &shortcut);
-    void unregisterShortcut(const QString &presetId);
     QStringList detectChangedPresets() const;
 
     Presets *m_presets = nullptr;

@@ -7,15 +7,10 @@
 #include "kdisplaypresets_applet.h"
 #include "kdisplaypresets_applet_debug.h"
 
-#include <QMetaEnum>
-#include <QQmlEngine> // for qmlRegisterType
-
 #include <QDBusArgument>
 #include <QDBusConnection>
 #include <QDBusInterface>
 #include <QDBusReply>
-
-#include <algorithm>
 
 K_PLUGIN_CLASS_WITH_JSON(KDisplayPresetsApplet, "metadata.json")
 

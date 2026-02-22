@@ -4,16 +4,15 @@
 
     SPDX-License-Identifier: GPL-2.0-or-later
 */
-import QtQuick 2.15
-import QtQuick.Layouts 1.15
-import QtQuick.Controls 2.15 as QQC2
-import org.kde.kirigami 2.20 as Kirigami
+import QtQuick
+import QtQuick.Layouts
+import QtQuick.Controls as QQC2
+import org.kde.kirigami as Kirigami
 
 Item {
     id: presetOutput
 
     property var outputData: null
-    property var kcm: null
     property real scaleFactor: 1.0
     property real xOffset: 0
     property real yOffset: 0
@@ -132,10 +131,7 @@ Item {
                         return i18nc("@info Monitor is not currently connected", "Missing");
                     }
 
-                    // Use Utils::sizeToString() for consistent formatting
-                    var res = presetOutput.kcm ?
-                        presetOutput.kcm.formatResolution(mode.width || 1920, mode.height || 1080) :
-                        (mode.width || 1920) + "×" + (mode.height || 1080);
+                    var res = (mode.width || 1920) + "×" + (mode.height || 1080);
                     var refresh = Math.round(mode.refreshRate || 60) + "Hz";
                     var extras = [];
 

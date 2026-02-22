@@ -7,7 +7,9 @@
 #pragma once
 
 #include <KQuickConfigModule>
-#include <kscreen/types.h>
+
+#include <KScreen/Types>
+
 #include <QAbstractItemModel>
 
 class PresetManager;

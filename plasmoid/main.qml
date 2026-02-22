@@ -22,6 +22,10 @@ PlasmoidItem {
     readonly property string kcmName: "kcm_displaypresets"
     readonly property bool kcmAllowed: KConfig.KAuthorized.authorizeControlModule("kcm_displaypresets")
 
+    // PresetModel::PresetRoles enum values (from kdisplaypresets_applet.h)
+    readonly property int isCurrentRole: Qt.UserRole + 8
+    readonly property int isAvailableRole: Qt.UserRole + 9
+
     // Auto-hide logic: Hide when ≤1 available preset and it's current
     Plasmoid.status: {
         if (!Plasmoid.presetModel) {
@@ -33,8 +37,8 @@ PlasmoidItem {
 
         for (var i = 0; i < Plasmoid.presetModel.rowCount(); i++) {
             var idx = Plasmoid.presetModel.index(i, 0);
-            var isAvailable = Plasmoid.presetModel.data(idx, 260); // IsAvailableRole = 260
-            var isCurrent = Plasmoid.presetModel.data(idx, 259); // IsCurrentRole = 259
+            var isAvailable = Plasmoid.presetModel.data(idx, root.isAvailableRole);
+            var isCurrent = Plasmoid.presetModel.data(idx, root.isCurrentRole);
 
             if (isAvailable) {
                 availableCount++;
