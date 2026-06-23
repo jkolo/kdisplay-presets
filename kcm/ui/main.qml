@@ -15,18 +15,7 @@ KCM.SimpleKCM {
 
     property bool canSavePreset: true
 
-    // Force refresh when monitor connection state changes
-    property bool _refreshTrigger: false
-
     title: i18nc("@title:window Display presets management", "Display Presets")
-
-    // Connect to monitor connection changes to refresh preset availability
-    Connections {
-        target: kcm
-        function onOutputConnect() {
-            _refreshTrigger = !_refreshTrigger;
-        }
-    }
 
     actions: Kirigami.Action {
         text: i18nc("@action:button Save current display configuration", "Save Current…")
@@ -67,7 +56,7 @@ KCM.SimpleKCM {
                         Layout.fillWidth: true
                         text: {
                             var description = model.description || "";
-                            var count = i18nc("@info Number of displays in preset", "%1 display(s)", model.outputCount || 0);
+                            var count = i18ncp("@info Number of displays in preset", "%1 display", "%1 displays", model.outputCount || 0);
 
                             if (description) {
                                 return description + " • " + count;
@@ -83,7 +72,7 @@ KCM.SimpleKCM {
 
                     QQC2.Label {
                         Layout.fillWidth: true
-                        text: model.lastUsed ? i18nc("@info", "Last used: %1", Qt.formatDate(model.lastUsed, Qt.DefaultLocaleShortDate)) : i18nc("@info", "Never used")
+                        text: model.lastUsed ? i18nc("@info", "Last used: %1", Qt.formatDate(model.lastUsed, Locale.ShortFormat)) : i18nc("@info", "Never used")
                         opacity: 0.6
                         font.pointSize: Kirigami.Theme.smallFont.pointSize
                         elide: Text.ElideRight
@@ -96,10 +85,7 @@ KCM.SimpleKCM {
                         color: Kirigami.Theme.negativeTextColor
                         font.pointSize: Kirigami.Theme.smallFont.pointSize
                         elide: Text.ElideRight
-                        visible: {
-                            _refreshTrigger; // Force binding update
-                            return kcm && !kcm.isPresetAvailable(model.presetId);
-                        }
+                        visible: !model.isAvailable
                     }
                 }
 
@@ -115,10 +101,7 @@ KCM.SimpleKCM {
                         outputs: {
                             return model.configuration ? model.configuration.outputs : [];
                         }
-                        presetAvailable: {
-                            _refreshTrigger; // Force binding update
-                            return !kcm || kcm.isPresetAvailable(model.presetId);
-                        }
+                        presetAvailable: model.isAvailable
                     }
                 }
 
@@ -133,36 +116,21 @@ KCM.SimpleKCM {
                         id: applyButton
                         Layout.fillWidth: true
                         Layout.preferredWidth: Kirigami.Units.gridUnit * 8
-                        text: {
-                            _refreshTrigger; // Force binding update
-                            return kcm && kcm.isPresetCurrent && kcm.isPresetCurrent(model.presetId)
-                                  ? i18nc("@info:status Current preset is active", "Current")
-                                  : i18nc("@action:button Apply display preset", "Apply");
-                        }
-                        icon.name: {
-                            _refreshTrigger; // Force binding update
-                            return kcm && kcm.isPresetCurrent && kcm.isPresetCurrent(model.presetId)
-                                   ? "checkmark"
-                                   : "dialog-ok-apply";
-                        }
+                        text: model.isCurrent
+                              ? i18nc("@info:status Current preset is active", "Current")
+                              : i18nc("@action:button Apply display preset", "Apply")
+                        icon.name: model.isCurrent ? "checkmark" : "dialog-ok-apply"
                         display: QQC2.AbstractButton.TextBesideIcon
-                        enabled: {
-                            _refreshTrigger; // Force binding update
-                            return kcm && kcm.isPresetAvailable && kcm.isPresetAvailable(model.presetId) &&
-                                   (!kcm.isPresetCurrent || !kcm.isPresetCurrent(model.presetId));
-                        }
+                        enabled: model.isAvailable && !model.isCurrent
                         onClicked: {
                             if (kcm && typeof kcm.loadPreset === "function") {
                                 kcm.loadPreset(model.presetId)
                             }
                         }
 
-                        QQC2.ToolTip.text: {
-                            _refreshTrigger; // Force binding update
-                            return kcm && kcm.isPresetCurrent && kcm.isPresetCurrent(model.presetId)
-                                   ? i18nc("@info:tooltip", "This display preset is currently active")
-                                   : i18nc("@info:tooltip", "Apply this display preset configuration");
-                        }
+                        QQC2.ToolTip.text: model.isCurrent
+                               ? i18nc("@info:tooltip", "This display preset is currently active")
+                               : i18nc("@info:tooltip", "Apply this display preset configuration")
                         QQC2.ToolTip.visible: hovered
                         QQC2.ToolTip.delay: 1000
                     }
@@ -209,7 +177,7 @@ KCM.SimpleKCM {
                         keySequence: model.shortcut || ""
                         patterns: ShortcutPattern.ModifierAndKey | ShortcutPattern.Modifier
                         multiKeyShortcutsAllowed: false
-                        checkForConflictsAgainst: ShortcutType.Global
+                        checkForConflictsAgainst: ShortcutType.GlobalShortcuts
                         onCaptureFinished: {
                             if (kcm && typeof kcm.updatePresetShortcut === "function") {
                                 kcm.updatePresetShortcut(model.presetId, keySequence)

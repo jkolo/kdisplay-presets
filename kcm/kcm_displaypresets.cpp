@@ -113,10 +113,10 @@ void KCMDisplayPresets::configReady(KScreen::ConfigOperation *op)
     if (m_config) {
         m_configMonitor->addConfig(m_config);
         m_presetManager->setScreenConfiguration(m_config);
-        // Refresh preset status now that configuration is available
+        // Refresh preset status now that configuration is available. This emits
+        // dataChanged() for the isAvailable/isCurrent roles, which drives the
+        // QML bindings reactively (no manual refresh trigger needed).
         m_presetManager->refreshPresetStatus();
-        // Notify QML to update bindings (triggers _refreshTrigger)
-        Q_EMIT outputConnect();
     }
 
     op->deleteLater();

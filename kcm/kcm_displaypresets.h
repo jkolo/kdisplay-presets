@@ -42,9 +42,6 @@ public:
     Q_INVOKABLE bool isPresetAvailable(const QString &presetId) const;
     Q_INVOKABLE bool isPresetCurrent(const QString &presetId) const;
 
-Q_SIGNALS:
-    void outputConnect();
-
 private Q_SLOTS:
     void configReady(KScreen::ConfigOperation *op);
     void updateScreenConfiguration();
