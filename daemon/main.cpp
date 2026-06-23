@@ -21,7 +21,9 @@ QString parseCommandLineArguments(QGuiApplication &app)
     parser.addHelpOption();
     parser.addVersionOption();
 
-    QCommandLineOption presetsFileOption(QStringList() << "p" << "presets-file", i18n("Use custom presets file path instead of default location"), "file");
+    QCommandLineOption presetsFileOption(QStringList{QStringLiteral("p"), QStringLiteral("presets-file")},
+                                         i18n("Use custom presets file path instead of default location"),
+                                         QStringLiteral("file"));
     parser.addOption(presetsFileOption);
 
     parser.process(app);

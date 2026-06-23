@@ -36,7 +36,7 @@ public Q_SLOTS:
 
 Q_SIGNALS:
     Q_SCRIPTABLE void presetsChanged(const QVariantList &changedPresets);
-    void errorOccurred(const QString &error);
+    Q_SCRIPTABLE void errorOccurred(const QString &error);
 
 private Q_SLOTS:
     void configChanged();
@@ -46,6 +46,7 @@ private Q_SLOTS:
 
 private:
     void updatePresetScreenConfiguration();
+    void notifyError(const QString &error);
     void emitPresetsChanged(const QStringList &changedPresetIds = {});
     QVariantMap buildPresetMap(const QModelIndex &index) const;
     QHash<QString, QVariantMap> buildPresetOutputsMap(const QVariantList &presetOutputsList) const;

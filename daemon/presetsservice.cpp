@@ -17,9 +17,9 @@
 #include <KScreen/SetConfigOperation>
 
 #include <KGlobalAccel>
+#include <KNotification>
 
 #include <QDBusConnection>
-#include <QDBusMetaType>
 #include <QTimer>
 
 PresetsService::PresetsService(QObject *parent, const QString &customPresetsFile)
@@ -47,9 +47,8 @@ bool PresetsService::init()
 {
     qCDebug(KDISPLAYPRESETS_DAEMON) << "Initializing PresetsService";
 
-    // Register D-Bus meta types for complex data types
-    qDBusRegisterMetaType<QVariantList>();
-    qDBusRegisterMetaType<QVariantMap>();
+    // QVariantList/QVariantMap have built-in QtDBus marshalling, so no
+    // qDBusRegisterMetaType is needed here.
 
     if (!QDBusConnection::sessionBus().registerObject(QStringLiteral("/"),
                                                       this,
@@ -121,7 +120,7 @@ void PresetsService::applyPreset(const QString &presetId)
     if (!m_presets->isPresetAvailable(presetId)) {
         const QString error = i18n("Preset not available: %1", presetId);
         qCWarning(KDISPLAYPRESETS_DAEMON) << error;
-        Q_EMIT errorOccurred(error);
+        notifyError(error);
         return;
     }
 
@@ -138,7 +137,7 @@ void PresetsService::applyPreset(const QString &presetId)
     if (presetData.isEmpty()) {
         const QString error = i18n("Preset data not found: %1", presetId);
         qCWarning(KDISPLAYPRESETS_DAEMON) << error;
-        Q_EMIT errorOccurred(error);
+        notifyError(error);
         return;
     }
 
@@ -148,7 +147,7 @@ void PresetsService::applyPreset(const QString &presetId)
         if (op->hasError()) {
             const QString error = i18n("Failed to get current config: %1", op->errorString());
             qCWarning(KDISPLAYPRESETS_DAEMON) << error;
-            Q_EMIT errorOccurred(error);
+            notifyError(error);
             op->deleteLater();
             return;
         }
@@ -157,7 +156,7 @@ void PresetsService::applyPreset(const QString &presetId)
         if (!config) {
             const QString error = i18n("Invalid config received");
             qCWarning(KDISPLAYPRESETS_DAEMON) << error;
-            Q_EMIT errorOccurred(error);
+            notifyError(error);
             op->deleteLater();
             return;
         }
@@ -190,7 +189,7 @@ void PresetsService::applyPreset(const QString &presetId)
             if (setOp->hasError()) {
                 const QString error = i18n("Failed to apply preset: %1", setOp->errorString());
                 qCWarning(KDISPLAYPRESETS_DAEMON) << error;
-                Q_EMIT errorOccurred(error);
+                notifyError(error);
             } else {
                 // Update last used timestamp
                 m_presets->updateLastUsed(presetId);
@@ -228,6 +227,15 @@ QVariantList PresetsService::getPresets()
         presets.append(buildPresetMap(m_presets->index(i, 0)));
     }
     return presets;
+}
+
+void PresetsService::notifyError(const QString &error)
+{
+    // Emit the (now scriptable) D-Bus signal for any programmatic client...
+    Q_EMIT errorOccurred(error);
+    // ...and surface it to the user directly, so failures triggered from a
+    // global shortcut (with no preset UI open) are not silently swallowed.
+    KNotification::event(KNotification::Error, i18n("Display Presets"), error);
 }
 
 void PresetsService::emitPresetsChanged(const QStringList &changedPresetIds)
@@ -321,6 +329,44 @@ void PresetsService::applyPresetToOutput(const KScreen::OutputPtr &output, const
     const QVariantMap posMap = presetOutputMap.value(QStringLiteral("pos")).toMap();
     const QPoint position(posMap.value(QStringLiteral("x"), 0).toInt(), posMap.value(QStringLiteral("y"), 0).toInt());
     output->setPos(position);
+
+    // Apply extended/advanced properties that configToVariantMap also persists.
+    // Each is guarded by the matching output capability AND the presence of the
+    // key in the preset, so (a) unsupported hardware is never poked and (b)
+    // older presets that predate a property don't overwrite live state with a
+    // default value. The kscreen backend ignores no-op/unsupported changes.
+    const KScreen::Output::Capabilities caps = output->capabilities();
+
+    if (caps.testFlag(KScreen::Output::Capability::Overscan) && presetOutputMap.contains(QStringLiteral("overscan"))) {
+        output->setOverscan(presetOutputMap.value(QStringLiteral("overscan")).toUInt());
+    }
+    if (caps.testFlag(KScreen::Output::Capability::Vrr) && presetOutputMap.contains(QStringLiteral("vrrPolicy"))) {
+        output->setVrrPolicy(static_cast<KScreen::Output::VrrPolicy>(presetOutputMap.value(QStringLiteral("vrrPolicy")).toInt()));
+    }
+    if (caps.testFlag(KScreen::Output::Capability::RgbRange) && presetOutputMap.contains(QStringLiteral("rgbRange"))) {
+        output->setRgbRange(static_cast<KScreen::Output::RgbRange>(presetOutputMap.value(QStringLiteral("rgbRange")).toInt()));
+    }
+    if (caps.testFlag(KScreen::Output::Capability::HighDynamicRange) && presetOutputMap.contains(QStringLiteral("hdr"))) {
+        output->setHdrEnabled(presetOutputMap.value(QStringLiteral("hdr")).toBool());
+    }
+    if (caps.testFlag(KScreen::Output::Capability::HighDynamicRange) && presetOutputMap.contains(QStringLiteral("sdr_brightness"))) {
+        output->setSdrBrightness(presetOutputMap.value(QStringLiteral("sdr_brightness")).toUInt());
+    }
+    if (caps.testFlag(KScreen::Output::Capability::WideColorGamut) && presetOutputMap.contains(QStringLiteral("wide_color_gamut"))) {
+        output->setWcgEnabled(presetOutputMap.value(QStringLiteral("wide_color_gamut")).toBool());
+    }
+    if (caps.testFlag(KScreen::Output::Capability::IccProfile) && presetOutputMap.contains(QStringLiteral("icc_profile_path"))) {
+        output->setIccProfilePath(presetOutputMap.value(QStringLiteral("icc_profile_path")).toString());
+    }
+    if (caps.testFlag(KScreen::Output::Capability::BrightnessControl) && presetOutputMap.contains(QStringLiteral("brightness"))) {
+        output->setBrightness(presetOutputMap.value(QStringLiteral("brightness")).toDouble());
+    }
+    if (caps.testFlag(KScreen::Output::Capability::AutoRotation) && presetOutputMap.contains(QStringLiteral("auto_rotate_policy"))) {
+        output->setAutoRotatePolicy(static_cast<KScreen::Output::AutoRotatePolicy>(presetOutputMap.value(QStringLiteral("auto_rotate_policy")).toInt()));
+    }
+    if (caps.testFlag(KScreen::Output::Capability::ExtendedDynamicRange) && presetOutputMap.contains(QStringLiteral("edr_policy"))) {
+        output->setEdrPolicy(static_cast<KScreen::Output::EdrPolicy>(presetOutputMap.value(QStringLiteral("edr_policy")).toInt()));
+    }
 
     // Apply priority (after enabled state is set to ensure correct ordering)
     const uint32_t priority = presetOutputMap.value(QStringLiteral("priority"), 1).toUInt();

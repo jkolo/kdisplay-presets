@@ -15,5 +15,10 @@
       <arg name="changedPresets" type="av" direction="out" />
       <annotation name="org.qtproject.QtDBus.QtTypeName.Out0" value="QVariantList"/>
     </signal>
+
+    <!-- Emitted when applying a preset fails -->
+    <signal name="errorOccurred">
+      <arg name="error" type="s" direction="out" />
+    </signal>
   </interface>
 </node>
