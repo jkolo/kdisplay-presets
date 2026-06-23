@@ -27,6 +27,7 @@ target_link_libraries(kdisplaypresets_daemon PRIVATE
     KF6::Screen
     KF6::I18n
     KF6::GlobalAccel
+    KF6::Notifications
 )
 
 install(TARGETS kdisplaypresets_daemon DESTINATION ${KDE_INSTALL_LIBEXECDIR})

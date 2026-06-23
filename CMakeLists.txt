@@ -7,7 +7,8 @@ set(PROJECT_VERSION_MAJOR 1)
 
 set(QT_MIN_VERSION 6.8.0)
 set(KF_MIN_VERSION 6.5.0)
-set(KDE_COMPILERSETTINGS_LEVEL 5.82)
+set(PLASMA_MIN_VERSION 6.5.0)
+set(KDE_COMPILERSETTINGS_LEVEL 6.5.0)
 
 find_package(ECM ${KF_MIN_VERSION} REQUIRED NO_MODULE)
 set(CMAKE_MODULE_PATH ${ECM_MODULE_PATH} ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
@@ -39,7 +40,6 @@ find_package(Qt6 ${QT_MIN_VERSION} CONFIG REQUIRED COMPONENTS
     QuickControls2
     Gui
     DBus
-    Test
 )
 
 find_package(KF6 ${KF_MIN_VERSION} REQUIRED COMPONENTS
@@ -51,14 +51,15 @@ find_package(KF6 ${KF_MIN_VERSION} REQUIRED COMPONENTS
     GlobalAccel
     KCMUtils
     Screen
+    Notifications
 )
 
-find_package(Plasma ${KF_MIN_VERSION} REQUIRED)
+find_package(Plasma ${PLASMA_MIN_VERSION} REQUIRED)
 
 find_package(KF6Screen CONFIG REQUIRED)
 
 ecm_set_disabled_deprecation_versions(
-    QT 6.7.2
+    QT ${QT_MIN_VERSION}
     KF 6.14.0
 )
 

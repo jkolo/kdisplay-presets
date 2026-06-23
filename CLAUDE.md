@@ -11,183 +11,149 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-KDisplay Presets is a standalone KDE Plasma utility for managing display configuration presets. It allows users to save multiple display configurations and quickly switch between them using a system tray widget, keyboard shortcuts, or the System Settings module.
+KDisplay Presets is a standalone KDE Plasma utility for managing display configuration presets. Users save display configurations and switch between them via system tray widget, keyboard shortcuts, or System Settings.
 
-This project was extracted from KScreen to provide a focused, lightweight solution for display preset management that can coexist with the standard KScreen configuration tool.
+Extracted from KScreen to provide focused preset management that coexists with the standard KScreen configuration tool. Uses separate D-Bus namespace (`org.kde.kdisplaypresets`) and configuration directory (`~/.config/kdisplaypresets/`), but delegates actual display changes to KScreen backend (libkscreen).
 
 ## Build Commands
 
 ```bash
-# Build using existing build directory
+# Build (using existing build directory)
 ninja -C build
 
 # Clean build from scratch
-cmake -B build -G Ninja
-ninja -C build
+cmake -B build -G Ninja && ninja -C build
 
 # Install
 sudo ninja -C build install
+
+# Version is set in root CMakeLists.txt: set(PROJECT_VERSION "x.y.z")
 ```
 
-## Testing Commands
+The repo also carries a CLion `cmake-build-debug/` tree (`.idea/` is present). All commands above assume the CLI `build/` dir — run `cmake -B build -G Ninja` first if only `cmake-build-debug/` exists.
+
+## Testing & Debugging
+
+Only one `kdisplaypresets_daemon` can connect to D-Bus at a time. Kill existing instances before starting a new build.
 
 ```bash
-# Test the daemon (D-Bus service)
-QT_LOGGING_RULES="*.debug=true" ./build/bin/kdisplaypresets_daemon
+# Full test cycle
+ninja -C build
+killall kdisplaypresets_daemon
+QT_LOGGING_RULES="kdisplaypresets.*=true" ./build/bin/kdisplaypresets_daemon
 
-# Test the KCM module
-kcmshell6 kcm_displaypresets
+# Test individual components
+kcmshell6 kcm_displaypresets                     # KCM module
+# Plasmoid: Add "Display Presets" to system tray panel
 
-# Check D-Bus service
+# Check D-Bus service status
 dbus-send --print-reply --dest=org.kde.kdisplaypresets / org.kde.kdisplaypresets.getPresets
 
-# Kill running daemon (if needed for testing new build)
-ps aux | grep kdisplaypresets_daemon
-kill <PID>
+# Daemon supports custom presets file for testing
+./build/bin/kdisplaypresets_daemon --presets-file /tmp/test-presets.json
 ```
+
+### Logging Categories
+
+Enable targeted debug logging with `QT_LOGGING_RULES`:
+
+| Category | Component |
+|----------|-----------|
+| `kdisplaypresets.common` | Presets model, Utils |
+| `kdisplaypresets.daemon` | D-Bus daemon service |
+| `kdisplaypresets.kcm` | System Settings KCM |
+| `kdisplaypresets.applet` | System tray plasmoid |
+
+Example: `QT_LOGGING_RULES="kdisplaypresets.daemon=true"` for daemon-only logs.
 
 ## High-Level Architecture
 
+```
+┌──────────────────────┐    ┌─────────────────────┐
+│  System Settings KCM │    │  System Tray Widget  │
+│  (kcm/)              │    │  (plasmoid/)         │
+└──────────┬───────────┘    └──────────┬──────────┘
+           │  D-Bus calls              │  D-Bus calls
+           │  + monitors signal        │  + monitors signal
+           └───────────┬───────────────┘
+                       ▼
+              ┌────────────────┐
+              │  D-Bus Daemon  │  org.kde.kdisplaypresets
+              │  (daemon/)     │  Methods: applyPreset(), getPresets()
+              └───────┬────────┘  Signal: presetsChanged(changedPresets)
+                      │
+         ┌────────────┼────────────────┐
+         ▼            ▼                ▼
+   Presets model   KScreen API   KGlobalAccel
+   (common/)       (libkscreen)  (shortcuts)
+         │
+         ▼
+   ~/.config/kdisplaypresets/presets.json
+```
+
 ### Core Components
 
-**D-Bus Daemon (`daemon/`)**: Background service that manages display presets via D-Bus. Main class is `PresetsService` which:
-- Manages preset configuration via `org.kde.kdisplaypresets` D-Bus interface
-- Monitors display configuration changes automatically
-- Handles global keyboard shortcuts for preset switching (via KGlobalAccel)
-- Applies presets by communicating with KScreen backend
+**Common Library (`common/`)** — OBJECT library linked into daemon and KCM:
+- `Presets` (`presets.h`) — `QAbstractListModel` managing preset data, persistence (JSON), and availability/current-status checks against connected monitors. Watches config file with `QFileSystemWatcher` for cross-component sync.
+- `DisplayPreset` struct — holds id (UUID), name, description, timestamps, outputIds (hashMd5 values), configuration (QVariantMap of full KScreen config), and shortcut (QKeySequence).
+- `Utils` (`utils.h`) — display naming via `outputName()` (two overloads for `KScreen::Output*` / `OutputPtr`, with optional serial-number and connector suffixes).
 
-**Common Library (`common/`)**: Shared code used across components:
-- `Presets` - QAbstractListModel for preset data management
-- `Utils` - Display output naming and utility functions
-- Configuration file I/O (JSON format)
+**D-Bus Daemon (`daemon/`)** — `PresetsService` class:
+- Applies presets by mapping saved output configs onto current KScreen config, disabling outputs not in the preset.
+- Monitors display changes via `KScreen::ConfigMonitor` with 500ms debounce timer.
+- Manages per-preset global keyboard shortcuts via KGlobalAccel.
+- Emits `presetsChanged()` D-Bus signal when availability/status changes.
 
-**KCM Module (`kcm/`)**: System Settings module for preset management. Uses:
-- `KCMDisplayPresets` - Main KCM controller
-- `PresetManager` - Business logic for preset operations
-- QML UI in `kcm/ui/` for interface
-- Calls D-Bus service to apply presets
+**KCM Module (`kcm/`)** — `KCMDisplayPresets` + `PresetManager`:
+- `PresetManager` handles business logic: saving current KScreen config as preset (UUID generation, output serialization), delete/rename/update operations.
+- Calls daemon's D-Bus `applyPreset()` to apply presets (does not apply directly).
+- QML UI in `kcm/ui/`: `main.qml` (preset list with save/edit/delete/apply), `PresetView.qml` (monitor layout visualization), `PresetOutput.qml` (individual monitor rendering).
 
-**Plasmoid Widget (`plasmoid/`)**: System tray widget with auto-hide functionality. Features:
-- `KDisplayPresetsApplet` - Applet backend with D-Bus integration
-- `PresetModel` - QAbstractListModel bridging D-Bus data to QML
-- **Auto-hide logic**: Widget automatically hides when ≤1 available preset exists and is currently active
-- QML UI for quick preset switching
+**Plasmoid Widget (`plasmoid/`)** — `KDisplayPresetsApplet` + `PresetModel`:
+- `PresetModel` wraps D-Bus data (from `getPresets()`) into QML-accessible model. Roles include `IsCurrentRole`, `IsAvailableRole`.
+- Auto-hide: `Plasmoid.status = PassiveStatus` when ≤1 available preset and it's already active.
+- QML: `main.qml` (widget container), `PresetList.qml` (preset list with hover preview popup using `PopupPlasmaWindow`), `PresetView.qml` + `PresetOutput.qml` (monitor layout).
 
-### Key Design Patterns
+### Key Data Flows
 
-- **D-Bus Communication**: All components communicate via `org.kde.kdisplaypresets` service
-- **Configuration Persistence**: Uses `~/.config/kdisplaypresets/presets.json` for preset storage
-- **Auto-hide Widget**: Plasmoid uses `PlasmaCore.Types.PassiveStatus` when not needed
-- **Separation from KScreen**: Independent D-Bus namespace allows coexistence with KScreen
+**Saving a preset**: KCM `savePreset()` → PresetManager serializes current KScreen config → Presets model writes JSON → daemon detects file change via watcher → emits D-Bus `presetsChanged()` → all UIs refresh.
+
+**Applying a preset**: UI calls D-Bus `applyPreset(id)` → daemon gets current config via `GetConfigOperation` → maps preset outputs onto connected monitors → `SetConfigOperation` → updates lastUsed → emits `presetsChanged()`.
+
+**Display change detected**: KScreen `ConfigMonitor` fires → daemon debounces (500ms) → refreshes preset availability/current status → emits `presetsChanged()`.
 
 ## Development Guidelines
 
 ### Code Style
-- Uses KDE Frameworks Coding Style with `.clang-format` configuration
-- C++20 standard required
-- License headers: GPL-2.0-or-later with SPDX identifiers
+- KDE Frameworks Coding Style (`.clang-format` in repo)
+- C++20 standard
+- GPL-2.0-or-later with SPDX license headers
 
 ### Dependencies
-- Qt 6.8.0+ (Gui, Quick, QuickControls2, DBus, Test)
-- KDE Frameworks 6.5.0+ (I18n, CoreAddons, Config, DBusAddons, XmlGui, GlobalAccel, KCMUtils, Screen)
-- Plasma 6.5.0+
-- KF6Screen 6.5.0+ (core screen management library)
+- Qt 6.8.0+ (Core, Quick, QuickControls2, Gui, DBus)
+- KDE Frameworks 6.5.0+ (I18n, CoreAddons, Config, DBusAddons, XmlGui, GlobalAccel, KCMUtils, Screen, Notifications)
+- Plasma 6.5.0+, KF6Screen
+
+### Translation Domains
+
+| Component | Domain |
+|-----------|--------|
+| Daemon | `kdisplaypresets_daemon` |
+| Common | `kdisplaypresets_common` |
+| KCM | `kcm_displaypresets` |
+| Plasmoid | `plasma_applet_org.kde.kdisplaypresets` |
 
 ### Important Files
-- `daemon/org.kde.kdisplaypresets.xml` - D-Bus interface definition
-- `kcm/kcm_displaypresets.json` - KCM metadata (category: `display`)
-- `plasmoid/metadata.json` - Plasmoid metadata
+- `daemon/org.kde.kdisplaypresets.xml` — D-Bus interface definition
+- `daemon/plasma-kdisplaypresets.service` — systemd user service template
+- `kcm/kcm_displaypresets.json` — KCM metadata (category: `display`)
+- `plasmoid/metadata.json` — Plasmoid metadata
 - Configuration: `~/.config/kdisplaypresets/presets.json`
-- D-Bus service: `org.kde.kdisplaypresets.service`
-- Systemd unit: `plasma-kdisplaypresets.service`
-
-### Key Features
-
-**Apply vs Load Button**:
-- UI uses "Apply" instead of "Load" to better reflect the action
-- Implemented in `kcm/ui/main.qml`
-
-**Auto-hide Logic**:
-- Widget hides when there's only one available preset and it's already active
-- Prevents clutter in system tray when presets aren't useful
-- Implemented in `plasmoid/main.qml` via `Plasmoid.status` property
-
-**Keyboard Shortcuts**:
-- Managed by daemon using KGlobalAccel
-- Shortcuts stored per-preset in configuration
-- Automatically registered/unregistered when presets change
-
-### D-Bus Interface
-
-Service: `org.kde.kdisplaypresets`
-Path: `/`
-
-Methods:
-- `applyPreset(presetId: string)` - Apply a display preset
-- `getPresets() -> array<variant>` - Get all presets with status
-
-Signals:
-- `presetsChanged(changedPresets: array<variant>)` - Emitted when presets change
-
-### Daemon Management
-
-Only one `kdisplaypresets_daemon` can connect to D-Bus at a time.
-
-Before starting a new daemon:
-```bash
-# Check if daemon is running
-ps aux | grep kdisplaypresets_daemon
-
-# Kill if needed (when testing new build)
-killall kdisplaypresets_daemon
-
-# Start daemon with debug logging
-QT_LOGGING_RULES="*.debug=true" ./build/bin/kdisplaypresets_daemon
-```
-
-Check daemon status:
-```bash
-dbus-send --print-reply --dest=org.kde.kdisplaypresets / org.kde.kdisplaypresets.getPresets
-```
-
-### Testing Workflow
-
-1. Build project: `ninja -C build`
-2. Kill existing daemon: `killall kdisplaypresets_daemon`
-3. Start new daemon: `./build/bin/kdisplaypresets_daemon`
-4. Test KCM: `kcmshell6 kcm_displaypresets`
-5. Test widget: Add "Display Presets" to system tray
 
 ### Common Issues
 
-**Daemon not starting**:
-- Check if another instance is running
-- Verify D-Bus session bus is available
-- Check logging output for errors
+**Daemon not starting**: Check if another instance is running on D-Bus. Only one can register at a time.
 
-**Presets not appearing in widget**:
-- Verify daemon is running and registered on D-Bus
-- Check preset availability (all required monitors must be connected)
-- Review D-Bus signal connections in logs
+**Presets not appearing in widget**: Verify daemon is running (`dbus-send` test above). Check preset availability — all required monitors must be connected.
 
-**Widget not hiding**:
-- Check auto-hide logic in `plasmoid/main.qml`
-- Verify `isAvailable` and `isCurrent` flags are correct
-- Enable debug logging to see status calculations
-
-### Relation to KScreen
-
-This project is **independent** from KScreen but works alongside it:
-- Uses separate D-Bus namespace (`org.kde.kdisplaypresets` vs `org.kde.kscreen`)
-- Uses separate configuration directory (`~/.config/kdisplaypresets/`)
-- Can be installed and run simultaneously with KScreen
-- Delegates actual display configuration to KScreen backend (libkscreen)
-- Appears in same System Settings category as KScreen for user convenience
-
-### Translation Domain
-
-- Daemon: `kdisplaypresets_daemon`
-- KCM: `kcm_displaypresets`
-- Plasmoid: `plasma_applet_org.kde.kdisplaypresets`
-
-Ensure proper `i18n()` calls with correct translation domains in each component.
+**Widget not hiding when expected**: Check auto-hide logic in `plasmoid/main.qml` (`Plasmoid.status` property). Verify `isAvailable` and `isCurrent` flags with debug logging.
