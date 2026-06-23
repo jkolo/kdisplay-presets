@@ -16,6 +16,11 @@ class QDBusArgument;
 class PresetModel : public QAbstractListModel
 {
     Q_OBJECT
+    // Reactive scalars for the plasmoid auto-hide binding. The status binding
+    // cannot depend on rowCount()/data() (method calls create no binding
+    // dependency), so it binds to these NOTIFYable properties instead.
+    Q_PROPERTY(int availableCount READ availableCount NOTIFY countsChanged)
+    Q_PROPERTY(bool hasActiveCurrent READ hasActiveCurrent NOTIFY countsChanged)
 
 public:
     enum PresetRoles {
@@ -37,18 +42,26 @@ public:
     QVariant data(const QModelIndex &index, int role = Qt::DisplayRole) const override;
     QHash<int, QByteArray> roleNames() const override;
 
+    int availableCount() const;
+    bool hasActiveCurrent() const;
+
     Q_INVOKABLE void refreshPresets();
+
+Q_SIGNALS:
+    void countsChanged();
 
 private Q_SLOTS:
     void onPresetAvailabilityChanged();
 
 private:
+    void connectToDaemon();
     QVariantMap deserializePresetData(const QDBusArgument &arg) const;
     QVariantList deserializeOutputsList(const QDBusArgument &outputsArg) const;
     QVariantMap deserializeOutputData(const QDBusArgument &outputArg) const;
 
     QDBusInterface *m_presetsInterface;
     QVariantList m_presets;
+    bool m_signalConnected = false;
 };
 
 class KDisplayPresetsApplet : public Plasma::Applet

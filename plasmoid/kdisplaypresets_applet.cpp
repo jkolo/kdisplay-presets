@@ -10,7 +10,9 @@
 #include <QDBusArgument>
 #include <QDBusConnection>
 #include <QDBusInterface>
-#include <QDBusReply>
+#include <QDBusPendingCallWatcher>
+#include <QDBusPendingReply>
+#include <QDBusServiceWatcher>
 
 K_PLUGIN_CLASS_WITH_JSON(KDisplayPresetsApplet, "metadata.json")
 
@@ -54,25 +56,56 @@ PresetModel::PresetModel(QDBusInterface *presetsInterface, QObject *parent)
     : QAbstractListModel(parent)
     , m_presetsInterface(presetsInterface)
 {
-    // Connect to D-Bus signal for preset availability changes
-    if (m_presetsInterface && m_presetsInterface->isValid()) {
-        qCDebug(KDISPLAYPRESETS_APPLET) << "PresetModel: D-Bus interface is valid, connecting signals and loading presets";
-        QDBusConnection::sessionBus().connect(QStringLiteral("org.kde.kdisplaypresets"),
-                                              QStringLiteral("/"),
-                                              QStringLiteral("org.kde.kdisplaypresets"),
-                                              QStringLiteral("presetsChanged"),
-                                              this,
-                                              SLOT(onPresetAvailabilityChanged()));
-
-        // Load initial presets
+    // Reconnect automatically if the daemon (re)appears on the bus: handles the
+    // daemon being started after the applet (D-Bus/systemd activation) or
+    // restarting after a crash, instead of being stuck disconnected forever.
+    auto *serviceWatcher = new QDBusServiceWatcher(QStringLiteral("org.kde.kdisplaypresets"),
+                                                   QDBusConnection::sessionBus(),
+                                                   QDBusServiceWatcher::WatchForRegistration,
+                                                   this);
+    connect(serviceWatcher, &QDBusServiceWatcher::serviceRegistered, this, [this]() {
+        qCDebug(KDISPLAYPRESETS_APPLET) << "kdisplaypresets daemon registered; (re)connecting";
+        connectToDaemon();
         refreshPresets();
-    } else {
-        qCWarning(KDISPLAYPRESETS_APPLET) << "PresetModel: D-Bus interface is NOT valid!"
-                                  << "Interface exists:" << (m_presetsInterface != nullptr)
-                                  << "Is valid:" << (m_presetsInterface ? m_presetsInterface->isValid() : false)
-                                  << "Service:" << (m_presetsInterface ? m_presetsInterface->service() : "null")
-                                  << "Last error:" << (m_presetsInterface ? m_presetsInterface->lastError().message() : "no interface");
+    });
+
+    connectToDaemon();
+    // The first fetch is kicked off from KDisplayPresetsApplet::init().
+}
+
+void PresetModel::connectToDaemon()
+{
+    if (m_signalConnected) {
+        return;
     }
+    m_signalConnected = QDBusConnection::sessionBus().connect(QStringLiteral("org.kde.kdisplaypresets"),
+                                                              QStringLiteral("/"),
+                                                              QStringLiteral("org.kde.kdisplaypresets"),
+                                                              QStringLiteral("presetsChanged"),
+                                                              this,
+                                                              SLOT(onPresetAvailabilityChanged()));
+}
+
+int PresetModel::availableCount() const
+{
+    int count = 0;
+    for (const QVariant &presetVariant : m_presets) {
+        if (presetVariant.toMap().value(QStringLiteral("isAvailable")).toBool()) {
+            ++count;
+        }
+    }
+    return count;
+}
+
+bool PresetModel::hasActiveCurrent() const
+{
+    for (const QVariant &presetVariant : m_presets) {
+        const QVariantMap preset = presetVariant.toMap();
+        if (preset.value(QStringLiteral("isAvailable")).toBool() && preset.value(QStringLiteral("isCurrent")).toBool()) {
+            return true;
+        }
+    }
+    return false;
 }
 
 int PresetModel::rowCount(const QModelIndex &parent) const
@@ -138,35 +171,42 @@ QHash<int, QByteArray> PresetModel::roleNames() const
 
 void PresetModel::refreshPresets()
 {
-    if (!m_presetsInterface || !m_presetsInterface->isValid()) {
-        qCWarning(KDISPLAYPRESETS_APPLET) << "PresetModel::refreshPresets() - interface not valid";
+    if (!m_presetsInterface) {
         return;
     }
 
-    QDBusReply<QVariantList> reply = m_presetsInterface->call(QStringLiteral("getPresets"));
-    if (reply.isValid()) {
-        QVariantList presets;
-        const QVariantList &rawPresets = reply.value();
+    // Asynchronous: a blocking call here would run on the plasmashell GUI
+    // thread and could freeze the whole panel (up to the 25 s D-Bus timeout)
+    // if the daemon is slow or hung. Matches the asyncCall used for applyPreset.
+    auto *watcher = new QDBusPendingCallWatcher(m_presetsInterface->asyncCall(QStringLiteral("getPresets")), this);
+    connect(watcher, &QDBusPendingCallWatcher::finished, this, [this](QDBusPendingCallWatcher *call) {
+        call->deleteLater();
 
-        // Process each preset
+        const QDBusPendingReply<QVariantList> reply = *call;
+        if (reply.isError()) {
+            qCWarning(KDISPLAYPRESETS_APPLET) << "PresetModel::refreshPresets() - D-Bus call failed:" << reply.error().message();
+            return;
+        }
+
+        QVariantList presets;
+        const QVariantList rawPresets = reply.value();
         for (const QVariant &rawPreset : rawPresets) {
             QVariantMap preset;
-
             if (rawPreset.canConvert<QDBusArgument>()) {
                 preset = deserializePresetData(rawPreset.value<QDBusArgument>());
             } else if (rawPreset.canConvert<QVariantMap>()) {
                 preset = rawPreset.toMap();
             }
-
             presets.append(preset);
         }
 
         beginResetModel();
         m_presets = presets;
         endResetModel();
-    } else {
-        qCWarning(KDISPLAYPRESETS_APPLET) << "PresetModel::refreshPresets() - D-Bus call failed:" << reply.error().message();
-    }
+
+        // Drive the reactive auto-hide binding (availableCount/hasActiveCurrent).
+        Q_EMIT countsChanged();
+    });
 }
 
 void PresetModel::onPresetAvailabilityChanged()
@@ -233,17 +273,17 @@ QVariantMap PresetModel::deserializeOutputData(const QDBusArgument &outputArg) c
     QVariantMap outputMap;
     outputArg >> outputMap;
 
-    // Deserialize nested fields that might be QDBusArgument
-    QStringList nestedFields = {"pos", "mode", "logicalSize"};
-    for (const QString &field : nestedFields) {
-        if (outputMap.contains(field)) {
-            QVariant fieldVar = outputMap[field];
-            if (fieldVar.canConvert<QDBusArgument>()) {
-                QDBusArgument fieldArg = fieldVar.value<QDBusArgument>();
-                QVariantMap fieldMap;
-                fieldArg >> fieldMap;
-                outputMap[field] = fieldMap;
-            }
+    // QtDBus demarshals an a{sv} only one level deep, so any nested map (pos,
+    // mode, logicalSize, ...) arrives as a QVariant wrapping a QDBusArgument.
+    // Unwrap every such value generically rather than hardcoding field names —
+    // that way a new nested field added to the preset never silently arrives
+    // as undefined in QML.
+    for (auto it = outputMap.begin(); it != outputMap.end(); ++it) {
+        if (it.value().canConvert<QDBusArgument>()) {
+            QDBusArgument nested = it.value().value<QDBusArgument>();
+            QVariantMap nestedMap;
+            nested >> nestedMap;
+            it.value() = nestedMap;
         }
     }
 

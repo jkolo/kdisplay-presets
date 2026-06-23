@@ -5,8 +5,6 @@
     SPDX-License-Identifier: GPL-2.0-or-later
 */
 import QtQuick
-import QtQuick.Layouts
-import QtQuick.Controls as QQC2
 import org.kde.kirigami as Kirigami
 
 Item {

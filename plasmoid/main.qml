@@ -4,6 +4,10 @@
     SPDX-License-Identifier: GPL-2.0-only OR GPL-3.0-only OR LicenseRef-KDE-Accepted-GPL
 */
 
+// NOTE: This pragma is file-scoped. If you add it to PresetList.qml (or any
+// file whose delegates read model.* context properties), you MUST first convert
+// each `model.xyz` access to an explicit `required property` declaration, or the
+// delegates will silently stop receiving model data.
 pragma ComponentBehavior: Bound
 
 import QtQuick
@@ -22,34 +26,15 @@ PlasmoidItem {
     readonly property string kcmName: "kcm_displaypresets"
     readonly property bool kcmAllowed: KConfig.KAuthorized.authorizeControlModule("kcm_displaypresets")
 
-    // PresetModel::PresetRoles enum values (from kdisplaypresets_applet.h)
-    readonly property int isCurrentRole: Qt.UserRole + 8
-    readonly property int isAvailableRole: Qt.UserRole + 9
-
-    // Auto-hide logic: Hide when ≤1 available preset and it's current
+    // Auto-hide logic: hide when ≤1 available preset and it is the active one.
+    // Bound to the model's NOTIFYable availableCount/hasActiveCurrent properties
+    // so it re-evaluates on every refresh. A rowCount()/data() loop here would
+    // create no binding dependency and freeze at the startup state.
     Plasmoid.status: {
         if (!Plasmoid.presetModel) {
             return PlasmaCore.Types.PassiveStatus;
         }
-
-        var availableCount = 0;
-        var hasActiveCurrent = false;
-
-        for (var i = 0; i < Plasmoid.presetModel.rowCount(); i++) {
-            var idx = Plasmoid.presetModel.index(i, 0);
-            var isAvailable = Plasmoid.presetModel.data(idx, root.isAvailableRole);
-            var isCurrent = Plasmoid.presetModel.data(idx, root.isCurrentRole);
-
-            if (isAvailable) {
-                availableCount++;
-                if (isCurrent) {
-                    hasActiveCurrent = true;
-                }
-            }
-        }
-
-        // Hide if ≤1 available preset and it's current
-        return (availableCount <= 1 && hasActiveCurrent)
+        return (Plasmoid.presetModel.availableCount <= 1 && Plasmoid.presetModel.hasActiveCurrent)
             ? PlasmaCore.Types.PassiveStatus
             : PlasmaCore.Types.ActiveStatus;
     }

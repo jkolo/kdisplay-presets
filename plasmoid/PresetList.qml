@@ -91,7 +91,7 @@ ColumnLayout {
 
                     PlasmaComponents.Label {
                         Layout.fillWidth: true
-                        text: model.description || i18nc("@info", "%1 display(s)", model.outputCount || 0)
+                        text: model.description || i18ncp("@info", "%1 display", "%1 displays", model.outputCount || 0)
                         opacity: 0.6
                         font.pointSize: Kirigami.Theme.smallFont.pointSize
                         elide: Text.ElideRight

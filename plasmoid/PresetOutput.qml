@@ -5,8 +5,6 @@
     SPDX-License-Identifier: GPL-2.0-or-later
 */
 import QtQuick
-import QtQuick.Layouts
-import QtQuick.Controls as QQC2
 import org.kde.kirigami as Kirigami
 
 Item {
@@ -78,7 +76,7 @@ Item {
                 anchors.centerIn: parent
                 text: presetOutput.outputData?.priority || "1"
                 color: Kirigami.Theme.highlightedTextColor
-                font.pixelSize: Math.max(6, Math.min(10, parent.parent.parent.height / 8))
+                font.pixelSize: Math.max(6, Math.min(10, presetOutput.height / 8))
                 font.bold: true
             }
         }
