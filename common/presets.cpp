@@ -12,9 +12,11 @@
 
 #include <QDir>
 #include <QFile>
+#include <QFileInfo>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QSaveFile>
 #include <QStandardPaths>
 
 Presets::Presets(QObject *parent, const QString &customFilePath)
@@ -23,12 +25,30 @@ Presets::Presets(QObject *parent, const QString &customFilePath)
     , m_customPresetsFilePath(customFilePath)
 {
     loadPresetsFromDisk();
+    setupWatcher();
+}
 
+void Presets::setupWatcher()
+{
     const QString filePath = presetsFilePath();
-    if (QFile::exists(filePath)) {
+    const QString dirPath = QFileInfo(filePath).absolutePath();
+
+    // Ensure the config directory exists so it can be watched even before the
+    // first preset is written. Watching the directory (not only the file) lets
+    // a long-running daemon pick up presets.json being created by another
+    // process (e.g. the KCM) on first use, and survives atomic-rename writes
+    // that replace the file's inode.
+    QDir().mkpath(dirPath);
+
+    if (!m_fileWatcher->directories().contains(dirPath)) {
+        m_fileWatcher->addPath(dirPath);
+    }
+    if (QFile::exists(filePath) && !m_fileWatcher->files().contains(filePath)) {
         m_fileWatcher->addPath(filePath);
     }
-    connect(m_fileWatcher, &QFileSystemWatcher::fileChanged, this, &Presets::onPresetFileChanged);
+
+    connect(m_fileWatcher, &QFileSystemWatcher::fileChanged, this, &Presets::onPresetFileChanged, Qt::UniqueConnection);
+    connect(m_fileWatcher, &QFileSystemWatcher::directoryChanged, this, &Presets::onPresetDirectoryChanged, Qt::UniqueConnection);
 }
 
 int Presets::rowCount(const QModelIndex &parent) const
@@ -62,6 +82,10 @@ QVariant Presets::data(const QModelIndex &index, int role) const
         return preset.configuration;
     case ShortcutRole:
         return preset.shortcut;
+    case IsAvailableRole:
+        return isPresetAvailable(preset.id);
+    case IsCurrentRole:
+        return isPresetCurrent(preset.id);
     default:
         return QVariant();
     }
@@ -78,6 +102,8 @@ QHash<int, QByteArray> Presets::roleNames() const
         {OutputCountRole, "outputCount"},
         {ConfigurationRole, "configuration"},
         {ShortcutRole, "shortcut"},
+        {IsAvailableRole, "isAvailable"},
+        {IsCurrentRole, "isCurrent"},
     };
 }
 
@@ -305,6 +331,8 @@ void Presets::updateLastUsed(const QString &presetId)
 
     if (it != m_presets.end()) {
         it->lastUsed = QDateTime::currentDateTime();
+        const int row = std::distance(m_presets.begin(), it);
+        Q_EMIT dataChanged(index(row), index(row), {LastUsedRole});
         savePresetsToDisk();
     }
 }
@@ -326,7 +354,11 @@ void Presets::loadPresetsFromDisk()
     }
 
     QJsonParseError parseError;
-    const QJsonDocument doc = QJsonDocument::fromJson(file.readAll(), &parseError);
+    const QByteArray data = file.readAll();
+    // Remember the content we are about to process so the file watcher does not
+    // re-trigger a reload for the same bytes (self-write or duplicate events).
+    m_lastKnownData = data;
+    const QJsonDocument doc = QJsonDocument::fromJson(data, &parseError);
     if (parseError.error != QJsonParseError::NoError) {
         const QString error = i18n("Error parsing presets file: %1", parseError.errorString());
         qCWarning(KDISPLAYPRESETS_COMMON) << error;
@@ -367,7 +399,6 @@ void Presets::loadPresetsFromDisk()
 void Presets::savePresetsToDisk()
 {
     const QString filePath = presetsFilePath();
-    QFile file(filePath);
 
     // Create directory if it doesn't exist
     QDir dir = QFileInfo(filePath).absoluteDir();
@@ -375,6 +406,9 @@ void Presets::savePresetsToDisk()
         dir.mkpath(QStringLiteral("."));
     }
 
+    // QSaveFile writes to a temporary file and atomically renames on commit(),
+    // so a crash or power loss mid-write cannot corrupt/truncate presets.json.
+    QSaveFile file(filePath);
     if (!file.open(QIODevice::WriteOnly)) {
         const QString error = i18n("Could not open presets file for writing: %1", filePath);
         qCWarning(KDISPLAYPRESETS_COMMON) << error;
@@ -407,9 +441,22 @@ void Presets::savePresetsToDisk()
     root[QStringLiteral("presets")] = presetsArray;
 
     QJsonDocument doc(root);
-    file.write(doc.toJson());
+    const QByteArray jsonData = doc.toJson();
+    file.write(jsonData);
 
-    // Ensure the file is watched after creation/modification
+    if (!file.commit()) {
+        const QString error = i18n("Could not write presets file: %1", filePath);
+        qCWarning(KDISPLAYPRESETS_COMMON) << error;
+        Q_EMIT savingFailed(error);
+        return;
+    }
+
+    // Remember the exact bytes we wrote so our own watcher does not trigger a
+    // self-reload feedback loop (full model reset + shortcut re-registration).
+    m_lastKnownData = jsonData;
+
+    // QSaveFile's atomic rename replaces the file's inode, which drops a
+    // file-level watch; re-arm it (the directory watch stays valid regardless).
     if (!m_fileWatcher->files().contains(filePath)) {
         m_fileWatcher->addPath(filePath);
     }
@@ -429,11 +476,14 @@ void Presets::onPresetFileChanged()
 {
     const QString filePath = presetsFilePath();
     if (!QFile::exists(filePath)) {
-        // File was deleted, clear presets
-        beginResetModel();
-        m_presets.clear();
-        endResetModel();
-        Q_EMIT presetsChanged();
+        // The file-level watch was dropped by Qt; the directory watch will
+        // recover the file if/when it reappears. Clear current presets.
+        if (!m_presets.isEmpty()) {
+            beginResetModel();
+            m_presets.clear();
+            endResetModel();
+            Q_EMIT presetsChanged();
+        }
         return;
     }
 
@@ -442,9 +492,52 @@ void Presets::onPresetFileChanged()
         m_fileWatcher->addPath(filePath);
     }
 
-    // Reload presets from disk
-    loadPresetsFromDisk();
-    Q_EMIT presetsChanged();
+    reloadFromDiskIfExternallyChanged();
+}
+
+void Presets::onPresetDirectoryChanged()
+{
+    const QString filePath = presetsFilePath();
+
+    if (!QFile::exists(filePath)) {
+        // File removed; clear if we had anything. The directory watch stays
+        // armed, so we recover automatically when it is recreated.
+        if (!m_presets.isEmpty()) {
+            beginResetModel();
+            m_presets.clear();
+            endResetModel();
+            Q_EMIT presetsChanged();
+        }
+        return;
+    }
+
+    // The file may have just been created (first preset) or replaced via an
+    // atomic rename; (re-)arm the file-level watch for subsequent edits.
+    if (!m_fileWatcher->files().contains(filePath)) {
+        m_fileWatcher->addPath(filePath);
+    }
+
+    reloadFromDiskIfExternallyChanged();
+}
+
+void Presets::reloadFromDiskIfExternallyChanged()
+{
+    const QString filePath = presetsFilePath();
+    QFile file(filePath);
+    if (!file.open(QIODevice::ReadOnly)) {
+        return;
+    }
+    const QByteArray data = file.readAll();
+    file.close();
+
+    // Skip if the on-disk content is what we already have: our own write, or a
+    // duplicate watcher event (an atomic rename fires both fileChanged and
+    // directoryChanged). Avoids a self-reload feedback loop and double emits.
+    if (data == m_lastKnownData) {
+        return;
+    }
+
+    loadPresetsFromDisk(); // re-reads, updates m_lastKnownData, emits presetsChanged
 }
 
 void Presets::addPreset(const DisplayPreset &preset)

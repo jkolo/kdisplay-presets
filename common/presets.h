@@ -8,6 +8,7 @@
 #include <KScreen/Config>
 
 #include <QAbstractListModel>
+#include <QByteArray>
 #include <QDateTime>
 #include <QFileSystemWatcher>
 #include <QKeySequence>
@@ -48,6 +49,8 @@ public:
         OutputCountRole,
         ConfigurationRole,
         ShortcutRole,
+        IsAvailableRole,
+        IsCurrentRole,
     };
     Q_ENUM(PresetRoles)
 
@@ -90,12 +93,17 @@ protected:
 
 private Q_SLOTS:
     void onPresetFileChanged();
+    void onPresetDirectoryChanged();
 
 protected:
     QList<DisplayPreset> m_presets;
     KScreen::ConfigPtr m_screenConfiguration;
 
 private:
+    void setupWatcher();
+    void reloadFromDiskIfExternallyChanged();
+
     QFileSystemWatcher *m_fileWatcher;
     QString m_customPresetsFilePath;
+    QByteArray m_lastKnownData; // Content already loaded/written; suppresses self-write and duplicate-event reloads
 };
